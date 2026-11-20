@@ -1,0 +1,25 @@
+import{useState}from'react';
+type Page='Dashboard'|'PDV Balcão'|'PDV Delivery'|'Produtos'|'Clientes'|'Relatórios'|'Configurações';
+const pages:Page[]=['Dashboard','PDV Balcão','PDV Delivery','Produtos','Clientes','Relatórios','Configurações'];
+const icons=['▦','▤','▥','◫','♧','▧','⚙'];
+const format=(n:number)=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+type Pedido={id:number,nome:string,valor:number,etapa:'Pedidos'|'Entregues'|'Aguardando pagamento',pago:boolean};
+export default function App(){
+ const[page,setPage]=useState<Page>('Dashboard');const[menu,setMenu]=useState(false);
+ const[period,setPeriod]=useState('Hoje');const[modal,setModal]=useState(false);const[client,setClient]=useState('');const[valor,setValor]=useState('');const[paid,setPaid]=useState(false);
+ const[pedidos,setPedidos]=useState<Pedido[]>([]);const[notice,setNotice]=useState('');
+ const clear=()=>setNotice('');
+ function criarPedido(){const valorNum=Number(valor.replace(',','.'));if(!Number.isFinite(valorNum)||valorNum<=0){setNotice('Informe um valor válido para criar o pedido demonstrativo.');return;}
+ setPedidos(a=>[{id:Date.now(),nome:client.trim()||'Cliente não identificado',valor:valorNum,etapa:'Pedidos',pago:paid},...a]);setModal(false);setClient('');setValor('');setPaid(false);setNotice('Pedido de demonstração criado apenas nesta sessão. Nenhum dado foi salvo no banco.');}
+ function mover(p:Pedido){setPedidos(a=>a.map(x=>x.id===p.id?{...x,etapa:p.etapa==='Pedidos'?(p.pago?'Entregues':'Aguardando pagamento'):'Entregues',pago:p.etapa==='Aguardando pagamento'?true:p.pago}:x));}
+ return <div className="app"><aside className={'sidebar '+(menu?'wide':'')} onMouseEnter={()=>setMenu(true)} onMouseLeave={()=>setMenu(false)}>
+ <div className="brand"><b>G</b>{menu&&<strong>GELADÃO</strong>}</div>
+ <nav>{pages.map((x,i)=><button key={x} className={page===x?'on':''} onClick={()=>{setPage(x);clear()}} title={x}><span>{icons[i]}</span>{menu&&<label>{x}</label>}</button>)}</nav></aside>
+ <main><header><div><small>GELADÃO / SISTEMA PDV</small><h1>{page}</h1></div><span className="pill">VERSÃO DE DEMONSTRAÇÃO</span></header>
+ {notice&&<div className="notice" role="status">{notice}<button onClick={clear}>×</button></div>}
+ {page==='Dashboard'&&<><div className="topline"><h2>Visão geral</h2><select value={period} onChange={e=>setPeriod(e.target.value)}>{['Hoje','Ontem','Últimos 7 dias','Este mês','Personalizado'].map(v=><option key={v}>{v}</option>)}</select></div><div className="metrics">{[['Vendas gerais',format(0)],['Lucro bruto dos produtos',format(0)],['Pedidos','0'],['Tíquete médio',format(0)]].map(([t,v])=><article className="card" key={t}><small>{t}</small><h2>{v}</h2></article>)}</div><div className="cols"><section className="card"><h3>Vendas por canal</h3><p>Balcão: {format(0)}</p><p>Delivery: {format(0)}</p></section><section className="card"><h3>Bem-vindo ao GELADÃO</h3><p>Estrutura visual inicial. Os indicadores reais serão habilitados após a integração segura com o Supabase.</p></section></div></>}
+ {page==='PDV Delivery'&&<><div className="topline"><p>Organize entregas e pagamentos em três colunas.</p><button className="primary" onClick={()=>setModal(true)}>+ Nova venda</button></div><div className="kanban">{(['Pedidos','Entregues','Aguardando pagamento']as const).map(status=><section className="lane" key={status}><h3>{status}<span>{pedidos.filter(p=>p.etapa===status).length}</span></h3>{pedidos.filter(p=>p.etapa===status).map(p=><article className="order card" key={p.id}><b>#{String(p.id).slice(-6)}</b><h3>{p.nome}</h3><strong>{format(p.valor)}</strong><small>{p.pago?'Pagamento recebido':'A receber'}</small><div className="actions"><button onClick={()=>setNotice('Impressão ainda não configurada. Aguarde a integração com a impressora 80 mm.')}>♧ Imprimir</button>{status!=='Entregues'&&<button onClick={()=>mover(p)}>{status==='Pedidos'?'Marcar entregue':'Confirmar pagamento'} →</button>}</div></article>)}</section>)}</div></>}
+ {page!=='Dashboard'&&page!=='PDV Delivery'&&<section className="card placeholder"><h2>{page}</h2><p>Área preparada para desenvolvimento. Nenhuma venda ou alteração financeira pode ser registrada nesta demonstração.</p></section>}
+ <footer>GELADÃO · Ambiente inicial de apresentação · Não utilizar para vendas reais</footer></main>
+ {modal&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setModal(false)}}><div className="dialog card"><div className="topline"><h2>Nova venda delivery</h2><button onClick={()=>setModal(false)}>×</button></div><p>Formulário temporário para testar visualmente os cartões do Kanban. Ainda não salva no Supabase.</p><label>Cliente (opcional)</label><input value={client} onChange={e=>setClient(e.target.value)} placeholder="Nome do cliente"/><label>Valor do pedido (R$)</label><input value={valor} onChange={e=>setValor(e.target.value)} placeholder="Ex.: 45,90"/><label className="check"><input type="checkbox" checked={paid} onChange={e=>setPaid(e.target.checked)}/>Pagamento recebido</label><button className="primary" onClick={criarPedido}>Criar pedido de demonstração</button></div></div>}</div>;
+}
