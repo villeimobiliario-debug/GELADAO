@@ -595,3 +595,61 @@ INSERT INTO public.app_settings(id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.categories(name) VALUES ('Água'),('Gelo'),('Carvão'),('Cervejas'),('Refrigerantes'),('Energéticos'),('Outros') ON CONFLICT(name) DO NOTHING;
 
 COMMIT;
+
+
+-- Product administration improvements added after initial schema snapshot.
+BEGIN;
+CREATE OR REPLACE FUNCTION public.save_product(p_data jsonb, p_product_id uuid DEFAULT NULL::uuid)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+ v public.products%rowtype; v_id uuid; v_name text; v_category bigint;
+ v_cost numeric(12,2); v_price numeric(12,2); v_qty numeric(12,3); v_min numeric(12,3);
+ v_track boolean; v_active boolean; v_diff numeric(12,3);
+begin
+ if not private.is_admin() then raise exception 'Somente administrador pode modificar produtos' using errcode='42501'; end if;
+ if jsonb_typeof(p_data)<>'object' then raise exception 'Dados inválidos'; end if;
+ v_name:=trim(coalesce(p_data->>'name',''));
+ if length(v_name)<2 or length(v_name)>160 then raise exception 'Nome inválido'; end if;
+ v_category:=nullif(p_data->>'category_id','')::bigint;
+ if v_category is not null and not exists(select 1 from public.categories where id=v_category and active) then raise exception 'Categoria inválida'; end if;
+ v_cost:=coalesce((p_data->>'purchase_price')::numeric,0);
+ v_price:=coalesce((p_data->>'sale_price')::numeric,0);
+ v_qty:=coalesce((p_data->>'stock_qty')::numeric,0);
+ v_min:=coalesce((p_data->>'min_stock')::numeric,0);
+ if v_cost<0 or v_price<0 or v_qty<0 or v_min<0 or v_cost>999999 or v_price>999999 or v_qty>999999 then raise exception 'Valores fora do limite'; end if;
+ v_track:=coalesce((p_data->>'track_stock')::boolean,false);
+ v_active:=coalesce((p_data->>'active')::boolean,true);
+ if p_product_id is not null then
+   select * into v from public.products where id=p_product_id for update;
+   if not found then raise exception 'Produto não encontrado'; end if;
+   v_id:=p_product_id;
+   v_diff:=v_qty-v.stock_qty;
+   update public.products set name=v_name,category_id=v_category,
+      barcode=nullif(trim(coalesce(p_data->>'barcode','')),''),
+      sku=nullif(trim(coalesce(p_data->>'sku','')),''),
+      unit=left(coalesce(nullif(trim(p_data->>'unit'),''),'UN'),20),
+      purchase_price=v_cost,sale_price=v_price,track_stock=v_track,stock_qty=v_qty,
+      min_stock=v_min,active=v_active,updated_at=now() where id=v_id;
+ else
+   v_diff:=v_qty;
+   insert into public.products(category_id,name,barcode,sku,unit,purchase_price,sale_price,track_stock,stock_qty,min_stock,active)
+     values(v_category,v_name,nullif(trim(coalesce(p_data->>'barcode','')),''),
+       nullif(trim(coalesce(p_data->>'sku','')),''),
+       left(coalesce(nullif(trim(p_data->>'unit'),''),'UN'),20),
+       v_cost,v_price,v_track,v_qty,v_min,v_active) returning id into v_id;
+ end if;
+ if v_diff<>0 and (v_track or (p_product_id is not null and v.track_stock)) then
+    insert into public.stock_movements(product_id,qty_change,reason,actor)
+    values(v_id,v_diff,'ajuste',auth.uid());
+ end if;
+ return v_id;
+end$function$
+
+REVOKE ALL ON FUNCTION public.save_product(jsonb,uuid) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.save_product(jsonb,uuid) TO authenticated;
+REVOKE INSERT,UPDATE,DELETE ON public.products FROM authenticated;
+COMMIT;
