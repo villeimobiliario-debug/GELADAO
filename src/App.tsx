@@ -104,14 +104,13 @@ function App(){
    w.document.open();w.document.write(html);w.document.close();
   }catch(err){w.close();showError(err)}})();}
  async function saveProduct(e:FormEvent){e.preventDefault();if(!admin)return;setBusy(true);try{
-  const record={name:productForm.name.trim(),category_id:productForm.category_id?Number(productForm.category_id):null,barcode:productForm.barcode||null,sku:productForm.sku||null,unit:productForm.unit,purchase_price:number(productForm.purchase_price),sale_price:number(productForm.sale_price),track_stock:productForm.track_stock,stock_qty:number(productForm.stock_qty),min_stock:number(productForm.min_stock),active:productForm.active};
-  if(record.sale_price<0||record.purchase_price<0||record.stock_qty<0)throw Error('Valores do produto inválidos.');
-  // Existing stock changes must be audited using adjust_stock, never overwrite in form.
-  if(editProduct){const {stock_qty,...rest}=record;const{error}=await sb.from('products').update(rest).eq('id',editProduct.id);if(error)throw error;
-   const delta=Number(stock_qty)-Number(editProduct.stock_qty);
-   if(delta!==0){if(!editProduct.track_stock&&!record.track_stock)throw Error('Habilite o controle para ajustar estoque.');const r=await sb.rpc('adjust_stock',{p_product_id:editProduct.id,p_delta:delta});if(r.error)throw r.error}
-  }else{const{error}=await sb.from('products').insert(record);if(error)throw error}
-  setNewProduct(false);setEditProduct(null);await refresh()
+ const record={name:productForm.name.trim(),category_id:productForm.category_id?Number(productForm.category_id):null,
+ barcode:productForm.barcode||null,sku:productForm.sku||null,unit:productForm.unit,
+ purchase_price:number(productForm.purchase_price),sale_price:number(productForm.sale_price),
+ track_stock:productForm.track_stock,stock_qty:number(productForm.stock_qty),min_stock:number(productForm.min_stock),active:productForm.active};
+ if(![record.purchase_price,record.sale_price,record.stock_qty,record.min_stock].every(Number.isFinite))throw Error('Confira os valores numéricos do produto.');
+ const {error}=await sb.rpc('save_product',{p_data:record,p_product_id:editProduct?.id||null});if(error)throw error;
+ setNewProduct(false);setEditProduct(null);await refresh()
  }catch(err){showError(err)}finally{setBusy(false)}}
  function openProduct(p?:Product){setEditProduct(p||null);setProductForm({name:p?.name||'',category_id:String(p?.category_id||''),barcode:p?.barcode||'',sku:p?.sku||'',unit:p?.unit||'UN',purchase_price:String(p?.purchase_price||0),sale_price:String(p?.sale_price||0),track_stock:p?.track_stock||false,stock_qty:String(p?.stock_qty||0),min_stock:String(p?.min_stock||0),active:p?.active??true});setNewProduct(true)}
  async function saveCustomer(e:FormEvent){e.preventDefault();if(!custForm.name.trim()&&!custForm.phone.trim()){setNotice('Informe nome ou telefone.');return}setBusy(true);try{const record={name:custForm.name||null,phone:custForm.phone||null,street:custForm.street||null,neighborhood:custForm.neighborhood||null,house_number:custForm.house_number||null,complement:custForm.complement||null};const r=editCustomer?await sb.from('customers').update(record).eq('id',editCustomer.id):await sb.from('customers').insert(record);if(r.error)throw r.error;setNewCustomer(false);setEditCustomer(null);await refresh()}catch(err){showError(err)}finally{setBusy(false)}}
