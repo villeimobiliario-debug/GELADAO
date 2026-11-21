@@ -550,3 +550,41 @@ thead th{background:#fbfcfe}
   outline:2px solid #2563eb;
   outline-offset:2px;
 }
+
+/* GELADAO COLLECT ON DELIVERY OPTION */
+.payment-fields .collect-delivery-option {
+  grid-column:1/-1;
+  display:flex;
+  align-items:flex-start;
+  gap:11px;
+  padding:12px 14px;
+  border:1px solid #d8e6f8;
+  border-radius:12px;
+  background:#f4f8ff;
+  cursor:pointer;
+}
+.payment-fields .collect-delivery-option:has(input:checked) {
+  background:#e9f3ff;
+  border-color:#8fbaf3;
+  box-shadow:0 3px 10px rgba(37,99,235,.07);
+}
+.payment-fields .collect-delivery-option input {
+  flex:none;
+  margin-top:2px;
+  accent-color:#2563eb;
+}
+.payment-fields .collect-delivery-option span {
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.payment-fields .collect-delivery-option b {
+  font-size:13px;
+  color:#1d3d67;
+}
+.payment-fields .collect-delivery-option small {
+  font-size:11px;
+  color:#627894;
+  line-height:1.5;
+}
