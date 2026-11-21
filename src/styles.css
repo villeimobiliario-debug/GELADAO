@@ -653,3 +653,22 @@ thead th{background:#fbfcfe}
   font-weight:650;
   color:#56759a;
 }
+
+/* GELADAO DELIVERY RETURN TO PEDIDOS ACTION */
+.order .actions button.actionback{
+  border:1px solid #cbd7e8!important;
+  background:#fff!important;
+  color:#345477!important;
+  font-weight:650;
+  letter-spacing:-.1px;
+  transition:background .15s,border-color .15s,box-shadow .15s;
+}
+.order .actions button.actionback:hover:not(:disabled){
+  background:#edf4fc!important;
+  border-color:#96b5d7!important;
+  box-shadow:0 2px 8px rgba(29,68,110,.08);
+}
+.order .actions button.actionback:focus-visible{
+  outline:2px solid #2563eb;
+  outline-offset:2px;
+}
