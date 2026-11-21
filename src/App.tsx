@@ -25,6 +25,8 @@ function newForm(c?:Customer):Form{return {...initialForm,customer_id:c?.id||'',
 function App(){
  const [user,setUser]=useState<User|null>(null),[authReady,setAuthReady]=useState(false);
  const [staff,setStaff]=useState<Staff|null>(null),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false);
+ const [authMode,setAuthMode]=useState<'login'|'forgot'|'recovery'>(new URLSearchParams(window.location.search).get('recover')==='1'?'recovery':'login');
+ const [newPassword,setNewPassword]=useState(''),[confirmPassword,setConfirmPassword]=useState('');
  const [page,setPage]=useState<Page>('dashboard'),[menu,setMenu]=useState(false),[mobile,setMobile]=useState(false),[notice,setNotice]=useState(''),[loading,setLoading]=useState(false);
  const [staffMembers,setStaffMembers]=useState<Staff[]>([]),[memberEmail,setMemberEmail]=useState(''),[memberRole,setMemberRole]=useState('operador'),[memberActive,setMemberActive]=useState(true);
  const [cats,setCats]=useState<Cat[]>([]),[products,setProducts]=useState<Product[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[orders,setOrders]=useState<Order[]>([]);
@@ -57,7 +59,10 @@ function App(){
   if((d.data||[]).length>=5000)setNotice('Relatórios limitados aos últimos 5.000 pedidos. Consulte um administrador para exportação completa.');
  }catch(err){showError(err)}finally{setLoading(false)}},[]);
  useEffect(()=>{void sb.auth.getUser().then(({data})=>{setUser(data.user);setAuthReady(true)}).catch(err=>{showError(err);setAuthReady(true)});
- const {data:{subscription}}=sb.auth.onAuthStateChange((_event,session)=>setUser(session?.user||null));return()=>subscription.unsubscribe()},[]);
+ const {data:{subscription}}=sb.auth.onAuthStateChange((event,session)=>{
+  setUser(session?.user||null);
+  if(event==='PASSWORD_RECOVERY'){setAuthMode('recovery');setNotice('Defina uma nova senha para continuar.')}
+ });return()=>subscription.unsubscribe()},[]);
  useEffect(()=>{if(user){void loadStaff(user.id)}else setStaff(null)},[user?.id,loadStaff]);
  useEffect(()=>{if(staff?.active)void refresh()},[staff?.active,refresh]);
  useEffect(()=>{if(!staff?.active)return;
@@ -72,6 +77,35 @@ function App(){
  },[saleOpen,form,cart,editing,staff?.active,busy,newProduct,newCustomer]);
  useEffect(()=>{if(!saleOpen)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=previous}},[saleOpen]);
  async function login(e:FormEvent){e.preventDefault();setBusy(true);setNotice('');const{error}=await sb.auth.signInWithPassword({email:email.trim(),password});if(error)showError(error.message);setBusy(false)}
+ async function requestPasswordReset(e:FormEvent){
+  e.preventDefault();
+  if(busy)return;
+  const address=email.trim();
+  if(!address){setNotice('Informe o e-mail cadastrado.');return}
+  setBusy(true);setNotice('');
+  try{
+   const redirectTo=window.location.origin+'/?recover=1';
+   const {error}=await sb.auth.resetPasswordForEmail(address,{redirectTo});
+   if(error)throw error;
+   setNotice('Se este e-mail estiver cadastrado, você receberá um link de recuperação. Verifique também o spam.');
+  }catch(error){showError(error)}finally{setBusy(false)}
+ }
+ async function saveRecoveredPassword(e:FormEvent){
+  e.preventDefault();if(busy)return;
+  if(newPassword.length<8){setNotice('Crie uma senha de pelo menos 8 caracteres.');return}
+  if(newPassword!==confirmPassword){setNotice('As senhas não são iguais.');return}
+  setBusy(true);setNotice('');
+  try{
+   const {data:{user:recoveryUser},error:sessionError}=await sb.auth.getUser();
+   if(sessionError||!recoveryUser)throw Error('O link expirou ou não foi validado. Solicite outro e-mail de recuperação.');
+   const {error}=await sb.auth.updateUser({password:newPassword});
+   if(error)throw error;
+   await sb.auth.signOut();
+   setNewPassword('');setConfirmPassword('');setPassword('');setAuthMode('login');
+   window.history.replaceState(null,'',window.location.pathname);
+   setNotice('Senha alterada com sucesso. Entre com sua nova senha.');
+  }catch(error){showError(error)}finally{setBusy(false)}
+ }
  async function requestAccess(){if(!email.trim()||password.length<8){setNotice('Informe e-mail e senha com pelo menos 8 caracteres.');return}setBusy(true);const {error}=await sb.auth.signUp({email:email.trim(),password});setNotice(error?error.message:'Solicitação criada. Confirme o e-mail, se solicitado; um administrador precisará autorizar o perfil.');setBusy(false)}
  async function logout(){await sb.auth.signOut();setStaff(null);setUser(null);setPage('dashboard')}
  function openSale(channel:'balcao'|'delivery'){setSaleChannel(channel);setEditing(null);setForm({...initialForm});setCart([]);setProductSearch('');setCustomerSearch('');setCustomerChoiceIndex(-1);setSaleOpen(true)}
@@ -149,7 +183,23 @@ function App(){
  };
  const advanceField=(e:ReactKey<HTMLFormElement>)=>{if(e.key!=='Enter'||e.ctrlKey)return;const target=e.target as HTMLElement;if(target.tagName==='TEXTAREA'||target.tagName==='BUTTON')return;if(target.id==='product-search'){e.preventDefault();if(matched[0])addProduct(matched[0]);return}e.preventDefault();const all=[...e.currentTarget.querySelectorAll<HTMLElement>('[data-nav]')].filter(n=>!n.hasAttribute('disabled'));const i=all.indexOf(target);all[i+(e.shiftKey?-1:1)]?.focus()};
  if(!authReady)return <div className="auth-shell">Carregando GELADÃO...</div>;
- if(!user)return <main className="auth-shell"><form className="card login" onSubmit={login}><div className="login-logo">G</div><h1>GELADÃO</h1><p>Distribuidora de Bebidas · Sistema PDV</p><label>E-mail<input type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>Senha<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="primary" disabled={busy}>Entrar no sistema</button><button type="button" className="outline" disabled={busy} onClick={()=>void requestAccess()}>Solicitar acesso</button>{notice&&<p className="notice">{notice}</p>}<small>Acesso exclusivo a usuários autorizados. Não há cadastro público.</small></form></main>;
+ if(authMode==='recovery')return <main className="auth-shell"><form className="card login" onSubmit={saveRecoveredPassword}>
+  <div className="login-logo">G</div><h1>Criar nova senha</h1><p>Escolha uma nova senha para sua conta do GELADÃO.</p>
+  <label>Nova senha<input type="password" autoComplete="new-password" minLength={8} required value={newPassword} onChange={e=>setNewPassword(e.target.value)}/></label>
+  <label>Confirmar nova senha<input type="password" autoComplete="new-password" minLength={8} required value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)}/></label>
+  <button className="primary" disabled={busy}>{busy?'Salvando...':'Salvar nova senha'}</button>
+  <button className="outline" type="button" onClick={()=>{setAuthMode('login');setNotice('');window.history.replaceState(null,'',window.location.pathname)}}>Voltar para o login</button>
+  {notice&&<p className="notice" role="status">{notice}</p>}
+  <small>Não compartilhe sua senha nem o link recebido por e-mail.</small>
+ </form></main>;
+ if(!user)return <main className="auth-shell"><form className="card login" onSubmit={authMode==='forgot'?requestPasswordReset:login}>
+  <div className="login-logo">G</div><h1>GELADÃO</h1><p>{authMode==='forgot'?'Recuperação de senha':'Distribuidora de Bebidas · Sistema PDV'}</p>
+  <label>E-mail<input type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} required/></label>
+  {authMode==='login'&&<label>Senha<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label>}
+  <button className="primary" disabled={busy}>{busy?'Aguarde...':authMode==='forgot'?'Enviar link de recuperação':'Entrar no sistema'}</button>
+  {authMode==='login'?<><button type="button" className="auth-forgot-link" disabled={busy} onClick={()=>{setAuthMode('forgot');setNotice('')}}>Esqueci minha senha</button><button type="button" className="outline" disabled={busy} onClick={()=>void requestAccess()}>Solicitar acesso</button></>:<button type="button" className="outline" disabled={busy} onClick={()=>{setAuthMode('login');setNotice('')}}>Voltar para o login</button>}
+  {notice&&<p className="notice" role="status">{notice}</p>}<small>Acesso exclusivo a usuários autorizados. Não há cadastro público.</small>
+ </form></main>;
  if(!staff?.active)return <main className="auth-shell"><section className="card login"><div className="login-logo">G</div><h2>Cadastro aguardando autorização</h2><p>Seu login existe, mas seu perfil ainda não foi habilitado como operador ou administrador do GELADÃO.</p><p>Peça ao administrador que vincule seu usuário no painel seguro do Supabase.</p><div className="actions"><button className="primary" onClick={()=>void loadStaff(user.id)}>Verificar autorização</button><button className="outline" onClick={()=>void logout()}>Sair</button></div></section></main>;
  return <div className="app"><aside className={'sidebar '+(menu?'wide':'')+(mobile?' mobileopen':'')} onMouseEnter={()=>setMenu(true)} onMouseLeave={()=>setMenu(false)}><div className="brand"><b>G</b>{menu&&<strong>GELADÃO</strong>}</div><nav>{tabs.map(([id,title,icon])=><button key={id} title={title} className={page===id?'selected':''} onClick={()=>{setPage(id);setMobile(false);setNotice('')}}><span>{icon}</span>{menu&&<label>{title}</label>}</button>)}</nav><div className="sidebottom"><button title="Sair" onClick={()=>void logout()}><span>⇥</span>{menu&&<label>Sair</label>}</button></div></aside>
  <main className="main"><header><div className="headtitle"><button className="mobiletoggle" onClick={()=>setMobile(x=>!x)}>☰</button><div><small>GELADÃO / SISTEMA PDV</small><h1>{tabs.find(t=>t[0]===page)?.[1]}</h1></div></div><div className="headright"><span className="userchip">{staff.display_name||user.email} · {staff.role}</span><button className="outline" onClick={()=>void refresh()} disabled={loading}>↻ Atualizar</button></div></header>
