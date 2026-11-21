@@ -653,3 +653,33 @@ REVOKE ALL ON FUNCTION public.save_product(jsonb,uuid) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.save_product(jsonb,uuid) TO authenticated;
 REVOKE INSERT,UPDATE,DELETE ON public.products FROM authenticated;
 COMMIT;
+
+
+-- Staff management after first administrator is approved.
+BEGIN;
+CREATE OR REPLACE FUNCTION public.manage_staff_by_email(p_email text, p_role text DEFAULT 'operador'::text, p_active boolean DEFAULT true)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_id uuid;v_existing public.staff_profiles%rowtype;
+begin
+ if not private.is_admin() then raise exception 'Somente administradores podem gerenciar acessos' using errcode='42501'; end if;
+ if p_role not in ('admin','operador') then raise exception 'Perfil inválido'; end if;
+ select id into v_id from auth.users where lower(email)=lower(trim(p_email)) limit 1;
+ if v_id is null then raise exception 'E-mail não cadastrado. Solicite que a pessoa crie o acesso primeiro'; end if;
+ select * into v_existing from public.staff_profiles where user_id=v_id for update;
+ if found and v_existing.role='admin' and v_existing.active
+   and (p_role<>'admin' or not p_active)
+   and (select count(*) from public.staff_profiles where role='admin' and active)=1 then
+   raise exception 'Não é possível desativar o último administrador'; end if;
+ insert into public.staff_profiles(user_id,display_name,role,active)
+ values(v_id,split_part(trim(p_email),'@',1),p_role,p_active)
+ on conflict(user_id) do update set role=excluded.role,active=excluded.active;
+ return v_id;
+end$function$
+
+REVOKE ALL ON FUNCTION public.manage_staff_by_email(text,text,boolean) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.manage_staff_by_email(text,text,boolean) TO authenticated;
+COMMIT;
