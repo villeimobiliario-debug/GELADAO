@@ -401,3 +401,128 @@ thead th{background:#fbfcfe}
  .sale-editable-cart .cartline{flex-wrap:wrap;gap:9px}
  .sale-editable-cart .cartline>div:first-child{flex-basis:100%}
 }
+
+/* GELADAO FULL VIEWPORT PDV WORKSPACE 2026-11-21 */
+.sale-overlay{
+  position:fixed;
+  inset:0;
+  z-index:70;
+  display:block;
+  padding:0;
+  background:#f5f8ff;
+}
+.sale-overlay .sale-workspace{
+  box-sizing:border-box;
+  width:100%;
+  max-width:none;
+  min-width:0;
+  height:100vh;
+  height:100dvh;
+  max-height:none;
+  margin:0;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  border:0;
+  border-radius:0;
+  padding:22px clamp(20px,3.4vw,64px) 45px;
+  background:linear-gradient(140deg,#f9fbff 0%,#f3f7fe 70%,#f6f9ff 100%);
+  box-shadow:none;
+}
+.sale-overlay .sale-workspace .dialoghead{
+  position:sticky;
+  top:-22px;
+  z-index:5;
+  margin:0 0 24px;
+  padding:13px 0 19px;
+  background:#f7faff;
+  border-bottom:1px solid #dae5f2;
+  align-items:center;
+}
+.sale-overlay .sale-workspace .dialoghead h2{
+  font-size:clamp(22px,2vw,29px);
+  letter-spacing:-.5px;
+  font-weight:770;
+  color:#142b4b;
+}
+.sale-overlay .sale-workspace .dialoghead p{
+  color:#647d9b;
+  margin-top:5px;
+  font-size:12px;
+  line-height:1.5;
+}
+.sale-overlay .sale-workspace .dialoghead .outline{
+  flex:none;
+  min-height:41px;
+  padding:10px 16px;
+  border-color:#d4e0f1;
+  box-shadow:0 4px 12px rgba(14,40,75,.08);
+}
+.sale-overlay .sale-workspace>form{
+  width:100%;
+  min-width:0;
+  margin:0 auto;
+}
+.sale-overlay .sale-workspace .salegrid{
+  display:grid;
+  grid-template-columns:minmax(0,1.65fr) minmax(320px,.95fr);
+  gap:clamp(20px,3vw,48px);
+  align-items:start;
+}
+.sale-overlay .sale-workspace .formleft{
+  min-width:0;
+  padding:clamp(18px,2vw,28px);
+  border-radius:17px;
+  border:1px solid #e0e9f4;
+  background:#fff;
+  box-shadow:0 9px 30px rgba(15,35,69,.045);
+}
+.sale-overlay .sale-workspace .order-summary{
+  position:sticky;
+  top:92px;
+  min-width:0;
+  align-self:start;
+  padding:clamp(18px,2vw,26px);
+}
+.sale-overlay .sale-workspace .sale-editable-cart{
+  max-height:none;
+}
+.sale-overlay .sale-workspace .order-summary-items{
+  max-height:min(52vh,540px);
+}
+.sale-overlay .sale-workspace input,
+.sale-overlay .sale-workspace select,
+.sale-overlay .sale-workspace textarea{
+  scroll-margin-top:120px;
+}
+@media(max-width:1140px){
+  .sale-overlay .sale-workspace .salegrid{
+    grid-template-columns:minmax(0,1.4fr) minmax(290px,1fr);
+    gap:20px;
+  }
+}
+@media(max-width:860px){
+  .sale-overlay .sale-workspace .salegrid{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .sale-overlay .sale-workspace .order-summary{
+    position:static;
+    top:auto;
+  }
+  .sale-overlay .sale-workspace .order-summary-items{max-height:none}
+}
+@media(max-width:720px){
+  .sale-overlay .sale-workspace{
+    padding:12px 12px 36px;
+  }
+  .sale-overlay .sale-workspace .dialoghead{
+    top:-12px;
+    margin-bottom:16px;
+    padding:11px 0 14px;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .sale-overlay .sale-workspace .dialoghead h2{font-size:21px}
+  .sale-overlay .sale-workspace .dialoghead .outline{padding:8px 12px}
+  .sale-overlay .sale-workspace .formleft{padding:15px 13px}
+  .sale-overlay .sale-workspace .order-summary{padding:16px}
+}
