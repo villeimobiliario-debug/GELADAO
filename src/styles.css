@@ -526,3 +526,27 @@ thead th{background:#fbfcfe}
   .sale-overlay .sale-workspace .formleft{padding:15px 13px}
   .sale-overlay .sale-workspace .order-summary{padding:16px}
 }
+
+/* GELADAO AUTH PASSWORD RECOVERY */
+.auth-forgot-link{
+  width:100%;
+  align-self:center;
+  margin:0;
+  border:0;
+  border-radius:9px;
+  background:transparent;
+  color:#2459bc;
+  padding:10px 12px;
+  text-align:center;
+  font-size:13px;
+  font-weight:650;
+  transition:color .15s ease,background .15s ease;
+}
+.auth-forgot-link:hover:not(:disabled){
+  background:#edf4ff;
+  color:#173c83;
+}
+.auth-forgot-link:focus-visible{
+  outline:2px solid #2563eb;
+  outline-offset:2px;
+}
