@@ -168,3 +168,9 @@ thead th{background:#fbfcfe}
   .sidebar .sidebottom button label { color: #ffffff; }
   .sidebar nav button.selected { border-color: #b7d5ff; }
 }
+
+/* GELADAO PHONE SUFFIX CUSTOMER SEARCH */
+.sale-customer-results{margin-top:6px;margin-bottom:12px;box-shadow:0 5px 15px rgba(17,41,74,.07)}
+.sale-customer-results button{width:100%;font-size:13px;color:#263e60;line-height:1.5;text-align:left}
+.sale-customer-results button.sale-customer-active{background:#e5efff;color:#144ca6;box-shadow:inset 3px 0 #4286f4}
+.sale-search-hint{display:block;padding:10px 12px;color:#5c708b;background:#f5f8fd;line-height:1.5;font-size:12px}
