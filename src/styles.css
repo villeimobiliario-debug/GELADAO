@@ -588,3 +588,68 @@ thead th{background:#fbfcfe}
   color:#627894;
   line-height:1.5;
 }
+
+/* GELADAO OPTIONAL DELIVERY COLLECTION AMOUNT */
+.payment-fields .delivery-collection-field{
+  grid-column:1/-1;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-width:0;
+  padding:0 14px 13px;
+  margin-top:-6px;
+  border-left:1px solid #d8e6f8;
+  border-right:1px solid #d8e6f8;
+  border-bottom:1px solid #d8e6f8;
+  border-radius:0 0 12px 12px;
+  background:#f4f8ff;
+}
+.payment-fields .collect-delivery-option:has(input:checked)+.delivery-collection-field{
+  background:#e9f3ff;
+  border-color:#8fbaf3;
+}
+.payment-fields .delivery-collection-field label{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:5px;
+  color:#24507e;
+  font-size:12px;
+  font-weight:690;
+}
+.payment-fields .delivery-collection-field label small{
+  font-weight:400;
+  font-size:11px;
+  color:#65809e;
+}
+.payment-fields .delivery-collection-field input{
+  width:min(100%,230px);
+  padding:9px 11px;
+  border-radius:9px;
+  border:1px solid #c8dcf5;
+  background:#fff;
+}
+.payment-fields .delivery-collection-field>small{
+  font-size:11px;
+  color:#637b99;
+  line-height:1.45;
+}
+.payment-fields .delivery-collection-field>small.delivery-collection-warning{
+  font-weight:650;
+  color:#935524;
+}
+.order-summary-breakdown .delivery-collection-summary{
+  padding:11px 12px;
+  border:1px solid #bcd7f9;
+  background:#eaf3ff;
+  border-radius:10px;
+  color:#1f5086;
+  font-weight:650;
+}
+.delivery-card-collection{
+  display:block;
+  margin:6px 0 10px;
+  font-size:11px;
+  font-weight:650;
+  color:#56759a;
+}
