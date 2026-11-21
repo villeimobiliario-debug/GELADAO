@@ -188,7 +188,7 @@ function App(){
   <label>Nova senha<input type="password" autoComplete="new-password" minLength={8} required value={newPassword} onChange={e=>setNewPassword(e.target.value)}/></label>
   <label>Confirmar nova senha<input type="password" autoComplete="new-password" minLength={8} required value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)}/></label>
   <button className="primary" disabled={busy}>{busy?'Salvando...':'Salvar nova senha'}</button>
-  <button className="outline" type="button" onClick={()=>{setAuthMode('login');setNotice('');window.history.replaceState(null,'',window.location.pathname)}}>Voltar para o login</button>
+  <button className="outline" type="button" onClick={()=>{void sb.auth.signOut().then(()=>{setAuthMode('login');setNewPassword('');setConfirmPassword('');setNotice('');window.history.replaceState(null,'',window.location.pathname)}).catch(showError)}}>Voltar para o login</button>
   {notice&&<p className="notice" role="status">{notice}</p>}
   <small>Não compartilhe sua senha nem o link recebido por e-mail.</small>
  </form></main>;
