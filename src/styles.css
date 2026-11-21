@@ -174,3 +174,182 @@ thead th{background:#fbfcfe}
 .sale-customer-results button{width:100%;font-size:13px;color:#263e60;line-height:1.5;text-align:left}
 .sale-customer-results button.sale-customer-active{background:#e5efff;color:#144ca6;box-shadow:inset 3px 0 #4286f4}
 .sale-search-hint{display:block;padding:10px 12px;color:#5c708b;background:#f5f8fd;line-height:1.5;font-size:12px}
+
+/* GELADAO ORDER SUMMARY RIGHT - 2026-11-21 */
+.payment-panel{
+  margin-top:23px;
+  padding:19px 19px 21px;
+  background:linear-gradient(145deg,#f8faff,#f1f6fd);
+  border:1px solid #dce6f5;
+  border-radius:17px;
+  box-shadow:0 4px 17px rgba(16,31,59,.055);
+}
+.formleft .payment-panel h3{
+  margin:0 0 6px;
+  color:#173353;
+  font-size:17px;
+  letter-spacing:-.15px;
+}
+.payment-panel-help{
+  margin:0 0 17px;
+  color:#6c7e96;
+  font-size:12px;
+  line-height:1.55;
+}
+.payment-fields{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:13px 14px;
+  align-items:end;
+}
+.payment-fields label{
+  min-width:0;
+  font-size:12px;
+  color:#344b6b;
+}
+.payment-fields label.checkbox,
+.payment-fields label:has(textarea){
+  grid-column:1/-1;
+}
+.payment-fields .checkbox{
+  margin:2px 0;
+  font-size:13px;
+}
+.payment-fields textarea{
+  min-height:67px;
+}
+.order-summary{
+  position:sticky;
+  top:0;
+  background:linear-gradient(155deg,#fff,#f3f7ff);
+  border:1px solid #dbe6f6;
+  border-radius:18px;
+  box-shadow:0 9px 26px rgba(16,31,59,.085);
+  gap:14px;
+  padding:20px 18px;
+  min-width:0;
+}
+.order-summary-heading{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:9px;
+}
+.order-summary-heading h3{
+  margin:0 0 6px;
+  color:#153154;
+  font-size:17px;
+  font-weight:780;
+}
+.order-summary-heading small{
+  display:block;
+  color:#7386a0;
+  line-height:1.45;
+  font-size:11px;
+}
+.order-summary-count{
+  flex:none;
+  padding:5px 9px;
+  border:1px solid #cfe0fa;
+  background:#e9f1ff;
+  border-radius:30px;
+  color:#2457a9;
+  font-size:11px;
+  font-weight:700;
+}
+.order-summary-client{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding:10px 11px;
+  border:1px solid #e1e9f5;
+  border-radius:10px;
+  background:#fff;
+}
+.order-summary-client span{font-size:11px;color:#71859f}
+.order-summary-client strong{
+  font-size:12px;
+  font-weight:710;
+  color:#27456b;
+  text-align:right;
+  overflow-wrap:anywhere;
+}
+.order-summary-cart{
+  margin-top:0;
+  max-height:300px;
+  overflow:auto;
+  padding:0 12px;
+  background:#fff;
+  border:1px solid #e1e9f5;
+  border-radius:12px;
+}
+.order-summary-cart .cartline{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:7px 11px;
+  padding:13px 0;
+}
+.order-summary-cart .cartline>div:first-child{
+  grid-column:1/-1;
+  min-width:0;
+}
+.order-summary-cart .cartline>div:first-child b{
+  font-size:13px;
+  color:#1e3553;
+  overflow-wrap:anywhere;
+}
+.order-summary-cart .cartline .qty{
+  grid-column:1;
+  justify-content:flex-start;
+}
+.order-summary-cart .cartline>b{
+  grid-column:2;
+  align-self:center;
+  white-space:nowrap;
+  font-size:14px;
+  color:#143259;
+}
+.order-summary-cart .cartline:last-of-type{border-bottom:0}
+.order-summary-cart>.muted{
+  margin:0;
+  padding:23px 7px;
+  font-size:12px;
+  color:#7c8da5;
+  text-align:center;
+  line-height:1.6;
+}
+.order-summary-breakdown{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  padding-top:14px;
+  border-top:1px solid #dfe8f5;
+}
+.order-summary-breakdown .sumline{display:flex}
+.order-summary-breakdown .sumline.total{
+  border-top:1px solid #d5e1ef;
+  margin-top:1px;
+  padding-top:13px;
+}
+.order-summary-breakdown .sumline.total strong{
+  font-size:29px;
+  letter-spacing:-.4px;
+}
+.order-summary-breakdown .primary{
+  min-height:46px;
+  box-shadow:0 6px 16px rgba(37,99,235,.2);
+}
+.order-summary-breakdown>small{
+  line-height:1.5;
+  text-align:center;
+  color:#7e8fa7;
+}
+@media(max-width:1140px){
+  .order-summary{position:static}
+}
+@media(max-width:720px){
+  .payment-panel{padding:15px;margin-top:18px}
+  .payment-fields{grid-template-columns:1fr;gap:12px}
+  .order-summary{padding:16px}
+}
