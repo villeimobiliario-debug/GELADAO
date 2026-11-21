@@ -487,6 +487,9 @@ begin
     v_cost := v_cost+round(v_product.purchase_price*v_qty,2);
   end loop;
   if v_discount>v_subtotal+v_fee then raise exception 'Desconto superior ao total'; end if;
+  if v_was_existing and v_order.payment_status='paid' and v_paid and round(v_subtotal+v_fee-v_discount,2)<>v_order.total then
+    raise exception 'Valor de venda paga foi alterado. Desmarque Recebido, ajuste a venda e confirme o acerto do pagamento';
+  end if;
   if v_paid then v_paid_at:=coalesce(v_paid_at,now()); else v_paid_at:=null; end if;
   v_stage := case when v_channel='balcao' or v_delivered_at is not null then
     case when v_paid then 'entregues' else 'aguardando_pagamento' end
