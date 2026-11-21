@@ -103,3 +103,68 @@ thead th{background:#fbfcfe}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
+
+/* GELADAO SIDEBAR ACCESSIBILITY CONTRAST - 2026-11-21 */
+.sidebar {
+  background: linear-gradient(180deg, #0c1b34 0%, #112748 100%);
+}
+.sidebar nav button,
+.sidebar .sidebottom button {
+  color: #f3f7ff;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-weight: 600;
+  text-shadow: none;
+}
+.sidebar nav button label,
+.sidebar .sidebottom button label {
+  color: #f3f7ff;
+  opacity: 1;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: .05px;
+}
+.sidebar nav button span,
+.sidebar .sidebottom button span {
+  color: #ffffff;
+  opacity: 1;
+}
+.sidebar nav button:hover,
+.sidebar .sidebottom button:hover,
+.sidebar nav button:focus-visible,
+.sidebar .sidebottom button:focus-visible {
+  color: #ffffff;
+  background: #30517f;
+  border-color: rgba(177, 205, 255, .38);
+  box-shadow: 0 7px 17px rgba(2, 13, 33, .19);
+}
+.sidebar nav button:hover label,
+.sidebar .sidebottom button:hover label,
+.sidebar nav button:focus-visible label,
+.sidebar .sidebottom button:focus-visible label,
+.sidebar nav button:hover span,
+.sidebar .sidebottom button:hover span {
+  color: #ffffff;
+}
+.sidebar nav button.selected,
+.sidebar nav button.selected:hover,
+.sidebar nav button.selected:focus-visible {
+  color: #ffffff;
+  background: linear-gradient(125deg, #365f99, #2b5185);
+  border-color: rgba(174, 210, 255, .46);
+  box-shadow: inset 4px 0 0 #8dc2ff, 0 7px 17px rgba(4, 14, 36, .19);
+}
+.sidebar nav button.selected label,
+.sidebar nav button.selected span {
+  color: #ffffff;
+}
+.sidebar nav button:focus-visible,
+.sidebar .sidebottom button:focus-visible {
+  outline: 2px solid #a9d0ff;
+  outline-offset: 2px;
+}
+@media (prefers-contrast: more) {
+  .sidebar nav button label,
+  .sidebar .sidebottom button label { color: #ffffff; }
+  .sidebar nav button.selected { border-color: #b7d5ff; }
+}
