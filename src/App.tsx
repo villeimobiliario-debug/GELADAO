@@ -32,7 +32,7 @@ function App(){
  const [period,setPeriod]=useState('hoje'),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [query,setQuery]=useState(''),[customerQuery,setCustomerQuery]=useState(''),[orderQuery,setOrderQuery]=useState('');
  const [saleOpen,setSaleOpen]=useState(false),[saleChannel,setSaleChannel]=useState<'balcao'|'delivery'>('delivery'),[editing,setEditing]=useState<Order|null>(null);
- const [form,setForm]=useState<Form>(initialForm),[cart,setCart]=useState<Line[]>([]),[productSearch,setProductSearch]=useState(''),[customerSearch,setCustomerSearch]=useState('');
+ const [form,setForm]=useState<Form>(initialForm),[cart,setCart]=useState<Line[]>([]),[productSearch,setProductSearch]=useState(''),[customerSearch,setCustomerSearch]=useState(''),[customerChoiceIndex,setCustomerChoiceIndex]=useState(-1);
  const [newProduct,setNewProduct]=useState(false),[editProduct,setEditProduct]=useState<Product|null>(null);
  const [productForm,setProductForm]=useState({name:'',category_id:'',barcode:'',sku:'',unit:'UN',purchase_price:'0',sale_price:'0',track_stock:false,stock_qty:'0',min_stock:'0',active:true});
  const [newCustomer,setNewCustomer]=useState(false),[editCustomer,setEditCustomer]=useState<Customer|null>(null);
@@ -73,7 +73,7 @@ function App(){
  async function login(e:FormEvent){e.preventDefault();setBusy(true);setNotice('');const{error}=await sb.auth.signInWithPassword({email:email.trim(),password});if(error)showError(error.message);setBusy(false)}
  async function requestAccess(){if(!email.trim()||password.length<8){setNotice('Informe e-mail e senha com pelo menos 8 caracteres.');return}setBusy(true);const {error}=await sb.auth.signUp({email:email.trim(),password});setNotice(error?error.message:'Solicitação criada. Confirme o e-mail, se solicitado; um administrador precisará autorizar o perfil.');setBusy(false)}
  async function logout(){await sb.auth.signOut();setStaff(null);setUser(null);setPage('dashboard')}
- function openSale(channel:'balcao'|'delivery'){setSaleChannel(channel);setEditing(null);setForm({...initialForm});setCart([]);setProductSearch('');setCustomerSearch('');setSaleOpen(true)}
+ function openSale(channel:'balcao'|'delivery'){setSaleChannel(channel);setEditing(null);setForm({...initialForm});setCart([]);setProductSearch('');setCustomerSearch('');setCustomerChoiceIndex(-1);setSaleOpen(true)}
  async function editSale(o:Order){setLoading(true);try{const {data,error}=await sb.from('order_items').select('*').eq('order_id',o.id);if(error)throw error;
   const lines:Line[]=[];for(const item of data||[]){const p=products.find(v=>v.id===item.product_id);if(p)lines.push({product:p,quantity:Number(item.quantity),unit_price:Number(item.unit_price)})}
   if(lines.length!==(data||[]).length)throw Error('Produto de algum item não está disponível no cadastro.');
@@ -127,6 +127,19 @@ function App(){
  const monthly=Array.from({length:6},(_,i)=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-(5-i));const key=shortDay(d).slice(0,7);return {key,label:new Intl.DateTimeFormat('pt-BR',{month:'short'}).format(d),value:activeOrders.filter(o=>day(o.sold_at).slice(0,7)===key).reduce((sum,o)=>sum+Number(o.total),0)}});
  const monthlyMax=Math.max(1,...monthly.map(x=>x.value));
  const matched=products.filter(p=>p.active&&(p.name.toLowerCase().includes(productSearch.toLowerCase())||p.barcode?.includes(productSearch))).slice(0,9);
+ const customerSearchTerm=customerSearch.trim().toLowerCase();
+ const customerSearchDigits=customerSearchTerm.replace(/\D/g,'');
+ const customerMatches=customerSearchTerm?customers.filter(c=>{
+  const phone=String(c.phone||'').replace(/\D/g,'');
+  if(/^\d{2}$/.test(customerSearchTerm))return phone.endsWith(customerSearchTerm);
+  return String(c.name||'').toLowerCase().includes(customerSearchTerm)||
+   String(c.phone||'').toLowerCase().includes(customerSearchTerm)||
+   (customerSearchDigits.length>=3&&phone.includes(customerSearchDigits));
+ }).slice(0,12):[];
+ const selectSaleCustomer=(c:Customer)=>{
+  setForm(prev=>({...newForm(c),delivery_fee:prev.delivery_fee,discount:prev.discount,payment_method:prev.payment_method,paid:prev.paid,note:prev.note}));
+  setCustomerSearch('');setCustomerChoiceIndex(-1);
+ };
  const advanceField=(e:ReactKey<HTMLFormElement>)=>{if(e.key!=='Enter'||e.ctrlKey)return;const target=e.target as HTMLElement;if(target.tagName==='TEXTAREA'||target.tagName==='BUTTON')return;if(target.id==='product-search'){e.preventDefault();if(matched[0])addProduct(matched[0]);return}e.preventDefault();const all=[...e.currentTarget.querySelectorAll<HTMLElement>('[data-nav]')].filter(n=>!n.hasAttribute('disabled'));const i=all.indexOf(target);all[i+(e.shiftKey?-1:1)]?.focus()};
  if(!authReady)return <div className="auth-shell">Carregando GELADÃO...</div>;
  if(!user)return <main className="auth-shell"><form className="card login" onSubmit={login}><div className="login-logo">G</div><h1>GELADÃO</h1><p>Distribuidora de Bebidas · Sistema PDV</p><label>E-mail<input type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>Senha<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="primary" disabled={busy}>Entrar no sistema</button><button type="button" className="outline" disabled={busy} onClick={()=>void requestAccess()}>Solicitar acesso</button>{notice&&<p className="notice">{notice}</p>}<small>Acesso exclusivo a usuários autorizados. Não há cadastro público.</small></form></main>;
@@ -145,7 +158,33 @@ function App(){
  {page==='config'&&<section className="card settings"><h2>Configurações da distribuidora</h2><form onSubmit={saveSettings}><label>Nome<input disabled={!admin} value={settings.store_name} onChange={e=>setSettings(s=>({...s,store_name:e.target.value}))}/></label><label>Subtítulo<input disabled={!admin} value={settings.store_subtitle} onChange={e=>setSettings(s=>({...s,store_subtitle:e.target.value}))}/></label><label>Telefone<input disabled={!admin} value={settings.store_phone||''} onChange={e=>setSettings(s=>({...s,store_phone:e.target.value}))}/></label><label>Endereço no cupom<input disabled={!admin} value={settings.store_address||''} onChange={e=>setSettings(s=>({...s,store_address:e.target.value}))}/></label><label>Rodapé do cupom<input disabled={!admin} value={settings.receipt_footer||''} onChange={e=>setSettings(s=>({...s,receipt_footer:e.target.value}))}/></label><p>A impressão atual abre o diálogo de impressão do navegador para bobinas de 80 mm. Impressão silenciosa depende do modelo e da integração local.</p>{admin&&<button className="primary">Salvar configurações</button>}</form>{admin&&<div className="staff-panel"><h3>Usuários e permissões</h3><p>O usuário deve solicitar acesso primeiro. Apenas administradores podem liberar ou bloquear a conta.</p><form className="staff-form" onSubmit={manageStaff}><label>E-mail cadastrado<input type="email" required value={memberEmail} onChange={e=>setMemberEmail(e.target.value)} placeholder="usuario@exemplo.com"/></label><label>Perfil<select value={memberRole} onChange={e=>setMemberRole(e.target.value)}><option value="operador">Operador</option><option value="admin">Administrador</option></select></label><label>Status<select value={memberActive?'ativo':'inativo'} onChange={e=>setMemberActive(e.target.value==='ativo')}><option value="ativo">Ativo</option><option value="inativo">Bloqueado</option></select></label><button className="primary" disabled={busy}>Salvar permissão</button></form><div className="staff-list">{staffMembers.map(m=><div className="line-row" key={m.user_id}><strong>{m.display_name||m.user_id.slice(0,8)}</strong><span>{m.role==='admin'?'Administrador':'Operador'} · {m.active?'Ativo':'Bloqueado'}</span></div>)}</div></div>}</section>}
  <footer>GELADÃO · Uma unidade · {loading?'Atualizando dados...':'Dados protegidos por autenticação e RLS'}</footer></main>
  {saleOpen&&<div className="overlay"><div className="dialog card"><div className="dialoghead"><div><h2>{editing?'Editar venda #'+editing.order_number:'Nova venda '+(saleChannel==='delivery'?'Delivery':'Balcão')}</h2><p>F2 nova venda · Enter avança · F4 produtos · F6 endereço · F8 pagamento · Ctrl+Enter salva</p></div><button className="outline" onClick={()=>{if(window.confirm('Descartar alterações?'))setSaleOpen(false)}}>Fechar ×</button></div><form onKeyDown={advanceField} onSubmit={e=>{e.preventDefault();void saveSale()}}>
- <div className="salegrid"><div className="formleft"><h3>Cliente <small>(opcional)</small></h3><input value={customerSearch} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();const c=customerSearch.trim()?customers.find(c=>(c.name+' '+c.phone).toLowerCase().includes(customerSearch.toLowerCase())):undefined;if(c){setForm(prev=>({...newForm(c),delivery_fee:prev.delivery_fee,discount:prev.discount,payment_method:prev.payment_method,paid:prev.paid,note:prev.note}));setCustomerSearch('')}else document.querySelector<HTMLElement>('[data-nav]')?.focus()}}} onChange={e=>setCustomerSearch(e.target.value)} placeholder="Localizar cliente por nome ou telefone"/>{customerSearch&&<div className="suggestions">{customers.filter(c=>(c.name+' '+c.phone).toLowerCase().includes(customerSearch.toLowerCase())).slice(0,5).map(c=><button type="button" key={c.id} onClick={()=>{setForm(prev=>({...newForm(c),delivery_fee:prev.delivery_fee,discount:prev.discount,payment_method:prev.payment_method,paid:prev.paid,note:prev.note}));setCustomerSearch('')}}>{c.name||c.phone} · {c.phone||''}</button>)}</div>}<div className="fieldgrid"><label>Nome<input data-nav value={form.customer_name} onChange={e=>updateForm('customer_name',e.target.value)}/></label><label>Telefone<input data-nav value={form.customer_phone} onChange={e=>updateForm('customer_phone',e.target.value)}/></label></div>
+ <div className="salegrid"><div className="formleft"><h3>Cliente <small>(opcional)</small></h3>
+ <input value={customerSearch}
+ onKeyDown={e=>{
+  if(e.key==='ArrowDown'&&customerMatches.length){
+   e.preventDefault();setCustomerChoiceIndex(i=>Math.min(i+1,customerMatches.length-1));return;
+  }
+  if(e.key==='ArrowUp'&&customerMatches.length){
+   e.preventDefault();setCustomerChoiceIndex(i=>Math.max(i-1,0));return;
+  }
+  if(e.key==='Enter'){
+   e.preventDefault();e.stopPropagation();
+   const c=customerChoiceIndex>=0?customerMatches[customerChoiceIndex]:customerMatches.length===1?customerMatches[0]:undefined;
+   if(c){selectSaleCustomer(c)}
+   else if(!customerMatches.length)document.querySelector<HTMLElement>('[data-nav]')?.focus();
+  }
+ }}
+ onChange={e=>{setCustomerSearch(e.target.value);setCustomerChoiceIndex(-1)}}
+ placeholder="Nome, telefone ou os 2 últimos dígitos do celular" autoComplete="off"/>
+ {customerSearch&&<div className="suggestions sale-customer-results">
+  {customerMatches.map((c,i)=><button type="button" key={c.id}
+   className={customerChoiceIndex===i?'sale-customer-active':''}
+   onClick={()=>selectSaleCustomer(c)}>
+   {c.name||'Cliente sem nome'} · {c.phone||'Sem telefone'}
+  </button>)}
+  {!customerMatches.length&&<small className="sale-search-hint">Nenhum cliente encontrado. Continue pelos campos abaixo para cadastrar.</small>}
+  {customerMatches.length>1&&<small className="sale-search-hint">Encontrados {customerMatches.length} clientes. Clique no correto ou use ↓/↑ e Enter para selecionar.</small>}
+ </div>}<div className="fieldgrid"><label>Nome<input data-nav value={form.customer_name} onChange={e=>updateForm('customer_name',e.target.value)}/></label><label>Telefone<input data-nav value={form.customer_phone} onChange={e=>updateForm('customer_phone',e.target.value)}/></label></div>
  {saleChannel==='delivery'&&<><h3>Endereço <small>(todos os campos opcionais)</small></h3><div className="fieldgrid">{([['street','Rua'],['neighborhood','Bairro'],['house_number','Número'],['complement','Complemento']] as const).map(([k,label])=><label key={k}>{label}<input data-nav id={k==='street'?'delivery-street':undefined} value={form[k]} onChange={e=>updateForm(k,e.target.value)}/></label>)}</div></>}
  <h3>Produtos</h3><input ref={searchRef} id="product-search" data-nav placeholder="Buscar produto / código de barras e Enter para adicionar" value={productSearch} onChange={e=>setProductSearch(e.target.value)}/>{productSearch&&<div className="suggestions">{matched.map(p=><button key={p.id} type="button" onClick={()=>addProduct(p)}>{p.name} — {cash(Number(p.sale_price))}</button>)}</div>}
  <div className="cart">{cart.map(l=><div className="cartline" key={l.product.id}><div><b>{l.product.name}</b><small>{cash(Number(l.unit_price))} / {l.product.unit}</small>{admin&&<label className="priceinput">Preço unitário<input type="number" step=".01" min="0" value={l.unit_price} onChange={e=>setCart(lines=>lines.map(x=>x.product.id===l.product.id?{...x,unit_price:Number(e.target.value)}:x))}/></label>}</div><div className="qty"><button type="button" onClick={()=>changeQty(l.product.id,l.quantity-1)}>−</button><input type="number" min=".001" step=".001" value={l.quantity} onChange={e=>changeQty(l.product.id,Number(e.target.value))}/><button type="button" onClick={()=>changeQty(l.product.id,l.quantity+1)}>+</button></div><b>{cash(l.quantity*l.unit_price)}</b></div>)}{!cart.length&&<p className="muted">Adicione os produtos para começar a venda.</p>}</div>
