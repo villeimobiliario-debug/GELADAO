@@ -353,3 +353,51 @@ thead th{background:#fbfcfe}
   .payment-fields{grid-template-columns:1fr;gap:12px}
   .order-summary{padding:16px}
 }
+
+/* GELADAO EDITABLE ITEMS LEFT AND READONLY SUMMARY RIGHT */
+.sale-editable-cart{
+  margin:13px 0 0;
+  border:1px solid #e1e9f5;
+  border-radius:13px;
+  padding:0 14px;
+  background:#fff;
+  max-height:300px;
+  overflow:auto;
+}
+.sale-editable-cart .cartline{
+  gap:12px;
+  padding:13px 0;
+}
+.sale-editable-cart .cartline:last-child{border-bottom:0}
+.sale-editable-cart .cartline>div:first-child{min-width:0}
+.sale-editable-cart .cartline>div:first-child b{color:#1c3556;font-size:13px;overflow-wrap:anywhere}
+.sale-editable-cart .cartline>b{color:#19375d;white-space:nowrap;font-size:14px}
+.sale-editable-cart .qty input{width:58px}
+.sale-editable-cart>.muted{padding:16px 0;margin:0;font-size:12px;color:#778aa2;line-height:1.55}
+.order-summary-items{
+  max-height:295px;
+  overflow:auto;
+  background:#fff;
+  border:1px solid #e1e9f5;
+  border-radius:12px;
+  padding:0 13px;
+}
+.order-summary-item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px 0;
+  border-bottom:1px solid #edf1f6;
+}
+.order-summary-item:last-of-type{border-bottom:0}
+.order-summary-item>div{min-width:0;display:grid;gap:4px}
+.order-summary-item b{font-size:13px;font-weight:680;color:#203b5c;overflow-wrap:anywhere}
+.order-summary-item small{font-size:11px;color:#70839d}
+.order-summary-item strong{color:#17385e;font-size:13px;white-space:nowrap}
+.order-summary-items>.muted{margin:0;padding:23px 6px;font-size:12px;color:#7b8fa5;text-align:center;line-height:1.5}
+@media(max-width:720px){
+ .sale-editable-cart{padding:0 10px}
+ .sale-editable-cart .cartline{flex-wrap:wrap;gap:9px}
+ .sale-editable-cart .cartline>div:first-child{flex-basis:100%}
+}
