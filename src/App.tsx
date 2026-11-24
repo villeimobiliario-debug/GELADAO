@@ -12,6 +12,7 @@ type Order={id:string;order_number:number;channel:'delivery'|'balcao';stage:'ped
 type CreditBalance={id:string;order_id:string;customer_id:string;credit_amount:number;paid_amount:number;balance:number;created_at:string;created_by:string;order_number:number;total:number;sold_at:string;order_note:string|null;order_status:string};
 type CreditReceipt={id:string;customer_id:string;amount:number;method:'dinheiro'|'pix'|'cartao';note:string|null;request_id:string;received_at:string;created_by:string};
 type CreditAllocation={receipt_id:string;credit_sale_id:string;amount:number};
+type CreditOrderItem={id:string;product_name:string;quantity:number;unit_price:number;line_total:number};
 type Line={product:Product;quantity:number;unit_price:number};
 type Form={customer_id:string;customer_name:string;customer_phone:string;street:string;neighborhood:string;house_number:string;complement:string;note:string;delivery_fee:string;discount:string;payment_method:string;paid:boolean;collect_on_delivery:boolean;delivery_collection_amount:string};
 type Settings={store_name:string;store_subtitle:string;store_phone:string|null;store_address:string|null;receipt_footer:string|null;auto_print:boolean};
@@ -271,6 +272,7 @@ function App(){
  const [creditBalances,setCreditBalances]=useState<CreditBalance[]>([]),[creditReceipts,setCreditReceipts]=useState<CreditReceipt[]>([]),[creditAllocations,setCreditAllocations]=useState<CreditAllocation[]>([]);
  const [creditSearch,setCreditSearch]=useState(''),[creditSelectedCustomer,setCreditSelectedCustomer]=useState<string|null>(null);
  const [creditPaymentAmount,setCreditPaymentAmount]=useState(''),[creditPaymentMethod,setCreditPaymentMethod]=useState<'dinheiro'|'pix'|'cartao'>('pix'),[creditPaymentNote,setCreditPaymentNote]=useState(''),[creditPaymentBusy,setCreditPaymentBusy]=useState(false),[creditPaymentError,setCreditPaymentError]=useState('');
+ const [creditOrderItems,setCreditOrderItems]=useState<CreditOrderItem[]>([]),[creditOrderId,setCreditOrderId]=useState<string|null>(null),[creditItemsLoading,setCreditItemsLoading]=useState(false);
  const creditPaymentRequestId=useRef(crypto.randomUUID());
  const [settings,setSettings]=useState<Settings>({store_name:'GELADÃO',store_subtitle:'Distribuidora de Bebidas',store_phone:'',store_address:'',receipt_footer:'Obrigado pela preferência!',auto_print:false});
  const [period,setPeriod]=useState('hoje'),[start,setStart]=useState(''),[end,setEnd]=useState('');
@@ -407,7 +409,40 @@ function App(){
    if(hasUnsavedChanges&&!window.confirm('Descartar alterações desta venda?'))return;
    setSaleOpen(false);
  }
- async function editSale(o:Order){if(creditBalances.some(x=>x.order_id===o.id)){setNotice('Venda fiada protegida: confira as compras e recebimentos na aba Fiados.');setPage('fiados');setCreditSelectedCustomer(o.customer_id);return}setLoading(true);try{const {data,error}=await sb.from('order_items').select('*').eq('order_id',o.id);if(error)throw error;
+ 
+ async function receiveCredit(e:FormEvent){
+  e.preventDefault();if(creditPaymentBusy||!creditSelectedCustomer)return;
+  const amount=paymentCents(creditPaymentAmount);
+  const balance=creditBalances.filter(v=>v.customer_id===creditSelectedCustomer).reduce((sum,v)=>sum+Math.round(Number(v.balance)*100),0);
+  if(amount===null||amount<=0||amount>balance){
+   setCreditPaymentError('Informe um valor positivo até o saldo em aberto.');return;
+  }
+  if(!window.confirm('Confirmar recebimento de '+cash(amount/100)+'? O valor será abatido da conta do cliente.'))return;
+  setCreditPaymentBusy(true);setCreditPaymentError('');
+  try{
+   const {error}=await sb.rpc('receive_credit_payment',{
+    p_customer_id:creditSelectedCustomer,p_amount:amount/100,
+    p_method:creditPaymentMethod,p_request_id:creditPaymentRequestId.current,
+    p_note:creditPaymentNote.trim()||null
+   });
+   if(error)throw error;
+   creditPaymentRequestId.current=crypto.randomUUID();
+   setCreditPaymentAmount('');setCreditPaymentNote('');
+   setNotice('Recebimento registrado e saldo devedor atualizado.');
+   await refresh();
+  }catch(err){setCreditPaymentError(err instanceof Error?err.message:String(err))}
+  finally{setCreditPaymentBusy(false)}
+ }
+ async function loadCreditItems(id:string){
+  setCreditOrderId(id);setCreditOrderItems([]);setCreditItemsLoading(true);
+  try{
+   const {data,error}=await sb.from('order_items').select('id,product_name,quantity,unit_price,line_total').eq('order_id',id);
+   if(error)throw error;
+   setCreditOrderItems((data||[]) as CreditOrderItem[]);
+  }catch(err){showError(err)}
+  finally{setCreditItemsLoading(false)}
+ }
+async function editSale(o:Order){if(creditBalances.some(x=>x.order_id===o.id)){setNotice('Venda fiada protegida: confira as compras e recebimentos na aba Fiados.');setPage('fiados');setCreditSelectedCustomer(o.customer_id);return}setLoading(true);try{const {data,error}=await sb.from('order_items').select('*').eq('order_id',o.id);if(error)throw error;
   const lines:Line[]=[];for(const item of data||[]){const p=products.find(v=>v.id===item.product_id);if(p)lines.push({product:p,quantity:Number(item.quantity),unit_price:Number(item.unit_price)})}
   if(lines.length!==(data||[]).length)throw Error('Produto de algum item não está disponível no cadastro.');
   setSaleChannel(o.channel);setEditing(o);setForm({customer_id:o.customer_id||'',customer_name:o.customer_name||'',customer_phone:o.customer_phone||'',street:o.street||'',neighborhood:o.neighborhood||'',house_number:o.house_number||'',complement:o.complement||'',note:o.note||'',delivery_fee:String(o.delivery_fee),discount:String(o.discount),payment_method:o.payment_method,paid:o.payment_status==='paid',collect_on_delivery:o.collect_on_delivery||false,delivery_collection_amount:o.delivery_collection_amount==null?'':String(o.delivery_collection_amount)});setCart(lines);setProductSearch('');setCustomerSearch('');setCounterQty('1');setCounterPaymentError('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(lines.length?lines[lines.length-1].product.id:null);setCounterPendingProductId(null);setCounterPaymentOpen(false);setSaleOpen(true)
@@ -532,6 +567,24 @@ function App(){
  async function addCategory(){if(!admin||!catName.trim())return;const r=await sb.from('categories').insert({name:catName.trim()});if(r.error)showError(r.error);else{setCatName('');await refresh()}}
  async function manageStaff(e:FormEvent){e.preventDefault();if(!admin||!memberEmail.trim())return;setBusy(true);try{const{error}=await sb.rpc('manage_staff_by_email',{p_email:memberEmail.trim(),p_role:memberRole,p_active:memberActive});if(error)throw error;setMemberEmail('');setNotice('Permissão de usuário atualizada.');await refresh()}catch(err){showError(err)}finally{setBusy(false)}}
  async function saveSettings(e:FormEvent){e.preventDefault();if(!admin)return;const r=await sb.from('app_settings').update({...settings,updated_at:new Date().toISOString()}).eq('id',1);if(r.error)showError(r.error);else setNotice('Configurações atualizadas.')}
+ const creditByCustomer=customers.map(customer=>{
+  const sales=creditBalances.filter(x=>x.customer_id===customer.id);
+  const amount=sales.reduce((sum,x)=>sum+Number(x.credit_amount),0);
+  const balance=sales.reduce((sum,x)=>sum+Number(x.balance),0);
+  const paid=amount-balance;
+  return {customer,amount,balance,paid,count:sales.length};
+ }).filter(row=>row.count>0).sort((a,b)=>b.balance-a.balance||a.customer.name?.localeCompare(b.customer.name||'')||0);
+ const creditTotalDue=creditByCustomer.reduce((sum,row)=>sum+row.balance,0);
+ const creditCustomerCount=creditByCustomer.filter(row=>row.balance>0.001).length;
+ const creditCustomerRows=creditByCustomer.filter(row=>{
+  const term=creditSearch.trim().toLowerCase(),digits=creditSearch.replace(/\D/g,'');
+  return !term||(row.customer.name||'').toLowerCase().includes(term)||
+    (row.customer.phone||'').toLowerCase().includes(term)||
+    (digits.length>=2&&String(row.customer.phone||'').replace(/\D/g,'').includes(digits));
+ });
+ const chosenCredit=creditByCustomer.find(row=>row.customer.id===creditSelectedCustomer);
+ const chosenCreditSales=creditBalances.filter(row=>row.customer_id===creditSelectedCustomer);
+ const chosenCreditReceipts=creditReceipts.filter(row=>row.customer_id===creditSelectedCustomer);
  const activeOrders=orders.filter(o=>o.status==='active');
  const filtered=useMemo(()=>activeOrders.filter(o=>{const d=day(o.sold_at),today=shortDay(new Date()),prev=shortDay(new Date(Date.now()-86400000));const last=shortDay(new Date(Date.now()-6*86400000));if(period==='hoje')return d===today;if(period==='ontem')return d===prev;if(period==='7dias')return d>=last&&d<=today;if(period==='mes')return d.slice(0,7)===today.slice(0,7);return (!start||d>=start)&&(!end||d<=end)}),[activeOrders,period,start,end]);
  const sum=filtered.reduce((s,o)=>s+Number(o.total),0),gross=filtered.reduce((s,o)=>s+Number(o.subtotal)-Number(o.discount)-Number(o.cost_total),0);
