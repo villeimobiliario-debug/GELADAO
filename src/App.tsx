@@ -34,6 +34,7 @@ function App(){
  const [period,setPeriod]=useState('hoje'),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [query,setQuery]=useState(''),[customerQuery,setCustomerQuery]=useState(''),[orderQuery,setOrderQuery]=useState('');
  const [saleOpen,setSaleOpen]=useState(false),[saleChannel,setSaleChannel]=useState<'balcao'|'delivery'>('delivery'),[editing,setEditing]=useState<Order|null>(null);
+ const [counterQty,setCounterQty]=useState('1'),[counterTendered,setCounterTendered]=useState(''),[counterError,setCounterError]=useState(''),[counterChoiceIndex,setCounterChoiceIndex]=useState(-1),[counterLastProductId,setCounterLastProductId]=useState<string|null>(null);
  const [form,setForm]=useState<Form>(initialForm),[cart,setCart]=useState<Line[]>([]),[productSearch,setProductSearch]=useState(''),[customerSearch,setCustomerSearch]=useState(''),[customerChoiceIndex,setCustomerChoiceIndex]=useState(-1);
  const [newProduct,setNewProduct]=useState(false),[editProduct,setEditProduct]=useState<Product|null>(null);
  const [productForm,setProductForm]=useState({name:'',category_id:'',barcode:'',sku:'',unit:'UN',purchase_price:'0',sale_price:'0',track_stock:false,stock_qty:'0',min_stock:'0',active:true});
@@ -41,6 +42,7 @@ function App(){
  const [custForm,setCustForm]=useState({name:'',phone:'',street:'',neighborhood:'',house_number:'',complement:''});
  const [catName,setCatName]=useState('');
  const searchRef=useRef<HTMLInputElement>(null);
+ const counterSearchRef=useRef<HTMLInputElement>(null),counterCustomerRef=useRef<HTMLInputElement>(null),counterCustomerDetailsRef=useRef<HTMLDetailsElement>(null);
  const admin=staff?.role==='admin';
  const showError=(error:unknown)=>setNotice(error instanceof Error?error.message:String(error));
  const updateForm=(key:keyof Form,value:string|boolean)=>setForm(f=>({...f,[key]:value}));
@@ -66,15 +68,28 @@ function App(){
  useEffect(()=>{if(user){void loadStaff(user.id)}else setStaff(null)},[user?.id,loadStaff]);
  useEffect(()=>{if(staff?.active)void refresh()},[staff?.active,refresh]);
  useEffect(()=>{if(!staff?.active)return;
- const key=(e:KeyboardEvent)=>{if(e.key==='F2'&&!saleOpen&&!newProduct&&!newCustomer){e.preventDefault();openSale('delivery')}if(!saleOpen)return;
- if(e.key==='Escape'){e.preventDefault();closeSale()}
- if(e.key==='F4'){e.preventDefault();searchRef.current?.focus()}
- if(e.key==='F6'){e.preventDefault();document.getElementById('delivery-street')?.focus()}
- if(e.key==='F8'){e.preventDefault();document.getElementById('payment-method')?.focus()}
- if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();void saveSale()}
+ const key=(e:KeyboardEvent)=>{
+  if(e.key==='F2'&&!newProduct&&!newCustomer){
+   e.preventDefault();
+   if(saleOpen&&saleChannel==='balcao')startFreshCounter();
+   else if(!saleOpen)openSale(page==='balcao'?'balcao':'delivery');
+   return;
+  }
+  if(!saleOpen)return;
+  if(e.key==='Escape'){e.preventDefault();closeSale();return}
+  if(saleChannel==='balcao'){
+   if(e.key==='F3'||e.key==='F4'){e.preventDefault();counterSearchRef.current?.focus();return}
+   if(e.key==='F6'){e.preventDefault();document.getElementById('counter-discount')?.focus();return}
+   if(e.key==='F8'){e.preventDefault();document.getElementById('counter-payment')?.focus();return}
+  }else{
+   if(e.key==='F4'){e.preventDefault();searchRef.current?.focus();return}
+   if(e.key==='F6'){e.preventDefault();document.getElementById('delivery-street')?.focus();return}
+   if(e.key==='F8'){e.preventDefault();document.getElementById('payment-method')?.focus();return}
+  }
+  if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();void saveSale()}
  };
  window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)
- },[saleOpen,form,cart,editing,staff?.active,busy,newProduct,newCustomer]);
+ },[saleOpen,saleChannel,page,form,cart,editing,staff?.active,busy,newProduct,newCustomer,counterTendered]);
  useEffect(()=>{if(!saleOpen)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=previous}},[saleOpen]);
  async function login(e:FormEvent){e.preventDefault();setBusy(true);setNotice('');const{error}=await sb.auth.signInWithPassword({email:email.trim(),password});if(error)showError(error.message);setBusy(false)}
  async function requestPasswordReset(e:FormEvent){
@@ -108,7 +123,12 @@ function App(){
  }
  async function requestAccess(){if(!email.trim()||password.length<8){setNotice('Informe e-mail e senha com pelo menos 8 caracteres.');return}setBusy(true);const {error}=await sb.auth.signUp({email:email.trim(),password});setNotice(error?error.message:'Solicitação criada. Confirme o e-mail, se solicitado; um administrador precisará autorizar o perfil.');setBusy(false)}
  async function logout(){await sb.auth.signOut();setStaff(null);setUser(null);setPage('dashboard')}
- function openSale(channel:'balcao'|'delivery'){setSaleChannel(channel);setEditing(null);setForm({...initialForm});setCart([]);setProductSearch('');setCustomerSearch('');setCustomerChoiceIndex(-1);setSaleOpen(true)}
+ function openSale(channel:'balcao'|'delivery'){setSaleChannel(channel);setEditing(null);setForm({...initialForm});setCart([]);setProductSearch('');setCustomerSearch('');setCustomerChoiceIndex(-1);setCounterQty('1');setCounterTendered('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(null);setNotice('');setSaleOpen(true)}
+ function startFreshCounter(){
+  if(busy)return;
+  if((editing||cart.length||form.customer_name.trim()||form.customer_phone.trim()||form.note.trim()||number(form.discount)>0)&&!window.confirm('Descartar a venda atual e iniciar outra venda de balcão?'))return;
+  openSale('balcao');
+ }
  function closeSale(){
    if(busy)return;
    const hasUnsavedChanges=Boolean(editing||cart.length||Object.keys(initialForm).some(key=>form[key as keyof Form]!==initialForm[key as keyof Form]));
@@ -118,14 +138,22 @@ function App(){
  async function editSale(o:Order){setLoading(true);try{const {data,error}=await sb.from('order_items').select('*').eq('order_id',o.id);if(error)throw error;
   const lines:Line[]=[];for(const item of data||[]){const p=products.find(v=>v.id===item.product_id);if(p)lines.push({product:p,quantity:Number(item.quantity),unit_price:Number(item.unit_price)})}
   if(lines.length!==(data||[]).length)throw Error('Produto de algum item não está disponível no cadastro.');
-  setSaleChannel(o.channel);setEditing(o);setForm({customer_id:o.customer_id||'',customer_name:o.customer_name||'',customer_phone:o.customer_phone||'',street:o.street||'',neighborhood:o.neighborhood||'',house_number:o.house_number||'',complement:o.complement||'',note:o.note||'',delivery_fee:String(o.delivery_fee),discount:String(o.discount),payment_method:o.payment_method,paid:o.payment_status==='paid',collect_on_delivery:o.collect_on_delivery||false,delivery_collection_amount:o.delivery_collection_amount==null?'':String(o.delivery_collection_amount)});setCart(lines);setSaleOpen(true)
+  setSaleChannel(o.channel);setEditing(o);setForm({customer_id:o.customer_id||'',customer_name:o.customer_name||'',customer_phone:o.customer_phone||'',street:o.street||'',neighborhood:o.neighborhood||'',house_number:o.house_number||'',complement:o.complement||'',note:o.note||'',delivery_fee:String(o.delivery_fee),discount:String(o.discount),payment_method:o.payment_method,paid:o.payment_status==='paid',collect_on_delivery:o.collect_on_delivery||false,delivery_collection_amount:o.delivery_collection_amount==null?'':String(o.delivery_collection_amount)});setCart(lines);setProductSearch('');setCustomerSearch('');setCounterQty('1');setCounterTendered('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(lines.length?lines[lines.length-1].product.id:null);setSaleOpen(true)
  }catch(err){showError(err)}finally{setLoading(false)}}
  function addProduct(p:Product){setCart(lines=>{const existing=lines.find(x=>x.product.id===p.id);return existing?lines.map(x=>x.product.id===p.id?{...x,quantity:x.quantity+1}:x):[...lines,{product:p,quantity:1,unit_price:Number(p.sale_price)}]});setProductSearch('');searchRef.current?.focus()}
  function changeQty(id:string,qty:number){setCart(lines=>lines.map(x=>x.product.id===id?{...x,quantity:qty}:x).filter(x=>x.quantity>0))}
+ function addCounterProduct(p:Product){
+  const qty=Number(counterQty);
+  if(!Number.isSafeInteger(qty)||qty<1||qty>100000){setCounterError('Informe uma quantidade inteira entre 1 e 100.000.');return}
+  setCart(lines=>{const existing=lines.find(x=>x.product.id===p.id);return existing?lines.map(x=>x.product.id===p.id?{...x,quantity:x.quantity+qty}:x):[...lines,{product:p,quantity:qty,unit_price:Number(p.sale_price)}]});
+  setCounterLastProductId(p.id);setProductSearch('');setCounterQty('1');setCounterChoiceIndex(-1);setCounterError('');
+  window.requestAnimationFrame(()=>counterSearchRef.current?.focus());
+ }
  const subtotal=cart.reduce((s,x)=>s+x.quantity*x.unit_price,0),total=Math.max(0,subtotal+number(form.delivery_fee)-number(form.discount));
  async function saveSale(){if(busy)return;if(!cart.length){setNotice('Adicione ao menos um produto.');return}
   if(!cart.every(l=>l.quantity>0&&Number.isFinite(l.quantity))||![number(form.delivery_fee),number(form.discount),total].every(Number.isFinite)||number(form.discount)>subtotal+(saleChannel==='delivery'?number(form.delivery_fee):0)){setNotice('Confira quantidades, descontos e valores.');return}
-  if(form.paid&&form.payment_method==='nao_informado'){setNotice('Escolha a forma de pagamento.');return}
+  if(form.paid&&form.payment_method==='nao_informado'){setNotice('Escolha a forma de pagamento.');setCounterError('Selecione a forma de pagamento antes de confirmar.');return}
+  if(saleChannel==='balcao'&&form.paid&&form.payment_method==='dinheiro'&&counterTendered.trim()&&(!Number.isFinite(number(counterTendered))||number(counterTendered)<total)){setNotice('O valor recebido em dinheiro não pode ser inferior ao total quando a venda é marcada como paga.');setCounterError('Valor recebido insuficiente. Confira o pagamento ou desmarque pagamento recebido.');return}
   if(form.paid&&form.collect_on_delivery&&saleChannel==='delivery'){setNotice('Escolha entre pagamento recebido e receber na entrega.');return}
   if(saleChannel==='delivery'&&form.collect_on_delivery&&form.delivery_collection_amount.trim()&&(!Number.isFinite(number(form.delivery_collection_amount))||number(form.delivery_collection_amount)<=0||number(form.delivery_collection_amount)>999999.99)){setNotice('Informe um valor válido para receber na entrega, ou deixe o campo vazio para cobrar o total.');return}
   setBusy(true);try{
@@ -180,6 +208,12 @@ function App(){
  const monthly=Array.from({length:6},(_,i)=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-(5-i));const key=shortDay(d).slice(0,7);return {key,label:new Intl.DateTimeFormat('pt-BR',{month:'short'}).format(d),value:activeOrders.filter(o=>day(o.sold_at).slice(0,7)===key).reduce((sum,o)=>sum+Number(o.total),0)}});
  const monthlyMax=Math.max(1,...monthly.map(x=>x.value));
  const matched=products.filter(p=>p.active&&(p.name.toLowerCase().includes(productSearch.toLowerCase())||p.barcode?.includes(productSearch))).slice(0,9);
+ const counterQuery=productSearch.trim().toLowerCase();
+ const counterMatches=counterQuery?products.filter(p=>p.active&&(p.name.toLowerCase().includes(counterQuery)||String(p.barcode||'').toLowerCase().includes(counterQuery)||String(p.sku||'').toLowerCase().includes(counterQuery))).slice(0,8):[];
+ const counterSelected=counterChoiceIndex>=0?counterMatches[counterChoiceIndex]:counterMatches.find(p=>p.barcode===productSearch.trim()||p.sku===productSearch.trim())||counterMatches[0];
+ const counterPreview=counterSelected||products.find(p=>p.id===counterLastProductId);
+ const counterPreviewQty=Math.max(1,Number(counterQty)||1);
+ const counterLastOrder=activeOrders.find(o=>o.channel==='balcao');
  const customerSearchTerm=customerSearch.trim().toLowerCase();
  const customerSearchDigits=customerSearchTerm.replace(/\D/g,'');
  const customerMatches=customerSearchTerm?customers.filter(c=>{
@@ -213,7 +247,7 @@ function App(){
   {notice&&<p className="notice" role="status">{notice}</p>}<small>Acesso exclusivo a usuários autorizados. Não há cadastro público.</small>
  </form></main>;
  if(!staff?.active)return <main className="auth-shell"><section className="card login"><div className="login-logo">G</div><h2>Cadastro aguardando autorização</h2><p>Seu login existe, mas seu perfil ainda não foi habilitado como operador ou administrador do GELADÃO.</p><p>Peça ao administrador que vincule seu usuário no painel seguro do Supabase.</p><div className="actions"><button className="primary" onClick={()=>void loadStaff(user.id)}>Verificar autorização</button><button className="outline" onClick={()=>void logout()}>Sair</button></div></section></main>;
- return <div className="app"><aside className={'sidebar '+(menu?'wide':'')+(mobile?' mobileopen':'')} onMouseEnter={()=>setMenu(true)} onMouseLeave={()=>setMenu(false)}><div className="brand"><b>G</b>{menu&&<strong>GELADÃO</strong>}</div><nav>{tabs.map(([id,title,icon])=><button key={id} title={title} className={page===id?'selected':''} onClick={()=>{setPage(id);setMobile(false);setNotice('')}}><span>{icon}</span>{menu&&<label>{title}</label>}</button>)}</nav><div className="sidebottom"><button title="Sair" onClick={()=>void logout()}><span>⇥</span>{menu&&<label>Sair</label>}</button></div></aside>
+ return <div className="app"><aside className={'sidebar '+(menu?'wide':'')+(mobile?' mobileopen':'')} onMouseEnter={()=>setMenu(true)} onMouseLeave={()=>setMenu(false)}><div className="brand"><b>G</b>{menu&&<strong>GELADÃO</strong>}</div><nav>{tabs.map(([id,title,icon])=><button key={id} title={title} className={page===id?'selected':''} onClick={()=>{setPage(id);setMobile(false);setNotice('');if(id==='balcao')openSale('balcao')}}><span>{icon}</span>{menu&&<label>{title}</label>}</button>)}</nav><div className="sidebottom"><button title="Sair" onClick={()=>void logout()}><span>⇥</span>{menu&&<label>Sair</label>}</button></div></aside>
  <main className="main"><header><div className="headtitle"><button className="mobiletoggle" onClick={()=>setMobile(x=>!x)}>☰</button><div><small>GELADÃO / SISTEMA PDV</small><h1>{tabs.find(t=>t[0]===page)?.[1]}</h1></div></div><div className="headright"><span className="userchip">{staff.display_name||user.email} · {staff.role}</span><button className="outline" onClick={()=>void refresh()} disabled={loading}>↻ Atualizar</button></div></header>
  {notice&&<div className="notice" role="alert">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
  {page==='dashboard'&&<><div className="toolbar"><h2>Visão geral</h2><div className="filters"><select value={period} onChange={e=>setPeriod(e.target.value)}><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="7dias">Últimos 7 dias</option><option value="mes">Este mês</option><option value="custom">Personalizado</option></select>{period==='custom'&&<><input type="date" value={start} onChange={e=>setStart(e.target.value)}/><input type="date" value={end} onChange={e=>setEnd(e.target.value)}/></>}</div></div>
@@ -226,7 +260,119 @@ function App(){
  {page==='relatorios'&&<><div className="toolbar"><h2>Histórico de vendas</h2><div className="actions"><input placeholder="Número, nome ou telefone" value={orderQuery} onChange={e=>setOrderQuery(e.target.value)}/><button className="outline" onClick={()=>{const rows=[['Pedido','Data','Canal','Total','Pagamento'],...orders.map(o=>[String(o.order_number),fmt(o.sold_at),o.channel,String(o.total),o.payment_status])];const csv=rows.map(r=>r.map(v=>'"'+v.replace(/"/g,'""')+'"').join(';')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv'}));a.download='geladao-vendas.csv';a.click();URL.revokeObjectURL(a.href)}}>Exportar CSV</button></div></div><section className="card"><div className="tablewrap"><table><thead><tr><th>Pedido</th><th>Data</th><th>Canal</th><th>Total</th><th>Pagamento</th><th>Ações</th></tr></thead><tbody>{orders.filter(o=>(String(o.order_number)+' '+o.customer_name+' '+o.customer_phone).toLowerCase().includes(orderQuery.toLowerCase())).map(o=><tr key={o.id}><td>#{o.order_number}{o.status==='cancelled'?' · Cancelado':''}</td><td>{fmt(o.sold_at)}</td><td>{o.channel}</td><td>{cash(Number(o.total))}</td><td>{o.payment_status==='paid'?'Recebido':'Pendente'}</td><td><div className="actions"><button className="outline" onClick={()=>print(o)}>Imprimir</button>{o.status==='active'&&<><button className="outline" onClick={()=>void editSale(o)}>Editar</button>{admin&&<button className="danger" onClick={()=>void cancel(o)}>Cancelar</button>}</>}</div></td></tr>)}</tbody></table></div></section></>}
  {page==='config'&&<section className="card settings"><h2>Configurações da distribuidora</h2><form onSubmit={saveSettings}><label>Nome<input disabled={!admin} value={settings.store_name} onChange={e=>setSettings(s=>({...s,store_name:e.target.value}))}/></label><label>Subtítulo<input disabled={!admin} value={settings.store_subtitle} onChange={e=>setSettings(s=>({...s,store_subtitle:e.target.value}))}/></label><label>Telefone<input disabled={!admin} value={settings.store_phone||''} onChange={e=>setSettings(s=>({...s,store_phone:e.target.value}))}/></label><label>Endereço no cupom<input disabled={!admin} value={settings.store_address||''} onChange={e=>setSettings(s=>({...s,store_address:e.target.value}))}/></label><label>Rodapé do cupom<input disabled={!admin} value={settings.receipt_footer||''} onChange={e=>setSettings(s=>({...s,receipt_footer:e.target.value}))}/></label><p>A impressão atual abre o diálogo de impressão do navegador para bobinas de 80 mm. Impressão silenciosa depende do modelo e da integração local.</p>{admin&&<button className="primary">Salvar configurações</button>}</form>{admin&&<div className="staff-panel"><h3>Usuários e permissões</h3><p>O usuário deve solicitar acesso primeiro. Apenas administradores podem liberar ou bloquear a conta.</p><form className="staff-form" onSubmit={manageStaff}><label>E-mail cadastrado<input type="email" required value={memberEmail} onChange={e=>setMemberEmail(e.target.value)} placeholder="usuario@exemplo.com"/></label><label>Perfil<select value={memberRole} onChange={e=>setMemberRole(e.target.value)}><option value="operador">Operador</option><option value="admin">Administrador</option></select></label><label>Status<select value={memberActive?'ativo':'inativo'} onChange={e=>setMemberActive(e.target.value==='ativo')}><option value="ativo">Ativo</option><option value="inativo">Bloqueado</option></select></label><button className="primary" disabled={busy}>Salvar permissão</button></form><div className="staff-list">{staffMembers.map(m=><div className="line-row" key={m.user_id}><strong>{m.display_name||m.user_id.slice(0,8)}</strong><span>{m.role==='admin'?'Administrador':'Operador'} · {m.active?'Ativo':'Bloqueado'}</span></div>)}</div></div>}</section>}
  <footer>GELADÃO · Uma unidade · {loading?'Atualizando dados...':'Dados protegidos por autenticação e RLS'}</footer></main>
- {saleOpen&&<div className="overlay sale-overlay"><div className="dialog card sale-workspace" role="dialog" aria-modal="true" aria-label={editing?"Editar venda":"Nova venda"}><div className="dialoghead"><div><h2>{editing?'Editar venda #'+editing.order_number:'Nova venda '+(saleChannel==='delivery'?'Delivery':'Balcão')}</h2><p>F2 abre nova venda · Esc fecha · Enter avança · F4 produtos · F6 endereço · F8 pagamento · Ctrl+Enter salva</p></div><button type="button" className="outline" onClick={closeSale} title="Fechar venda (Esc)">Fechar · Esc ×</button></div><form onKeyDown={advanceField} onSubmit={e=>{e.preventDefault();void saveSale()}}>
+
+ {saleOpen&&saleChannel==='balcao'&&<div className="counter-overlay">
+  <section className="counter-workspace" role="dialog" aria-modal="true" aria-label={editing?'Editar venda de balcão':'Nova venda de balcão'}>
+   <form className="counter-sale-form" onSubmit={e=>{e.preventDefault();void saveSale()}}
+    onKeyDown={e=>{if(e.key==='Enter'&&!e.ctrlKey){const el=e.target as HTMLElement;if(el.tagName==='INPUT'&&el.id!=='counter-search'&&el.id!=='counter-qty')e.preventDefault()}}}>
+    <header className="counter-topbar">
+     <div className="counter-brand"><span className="counter-brand-icon">G</span><div><b>GELADÃO</b><small>PDV BALCÃO · ATENDIMENTO RÁPIDO</small></div></div>
+     <div className="counter-top-meta">
+      <span className="counter-status-dot"><i/> Operação de balcão</span>
+      <span className="counter-operator">Operador: <b>{staff.display_name||user.email||'Equipe'}</b></span>
+      <span className="counter-date">{new Date().toLocaleDateString('pt-BR')}</span>
+      <button type="button" className="counter-close" onClick={closeSale} title="Fechar (Esc)">Fechar <span>Esc</span> ×</button>
+     </div>
+    </header>
+    <div className="counter-product-banner">
+     <div className="counter-product-title"><small>PRODUTO SELECIONADO</small><h2>{counterPreview?.name||'PRONTO PARA A PRÓXIMA VENDA'}</h2><span>{counterPreview?('Código: '+(counterPreview.barcode||counterPreview.sku||'Sem código')):'Bipe o código de barras ou pesquise pelo nome'}</span></div>
+     <div className="counter-banner-value"><small>PREÇO UNITÁRIO</small><strong>{counterPreview?cash(Number(counterPreview.sale_price)):cash(0)}</strong></div>
+    </div>
+    <div className="counter-main">
+     <section className="counter-terminal">
+      <div className="counter-terminal-heading"><div className="counter-mark">▣</div><div><h3>Lançamento de produtos</h3><p>Leitura por código de barras ou busca rápida.</p></div></div>
+      <label className="counter-search-label" htmlFor="counter-search">Código de barras / descrição</label>
+      <div className="counter-search-wrap">
+       <span className="counter-search-icon">⌕</span>
+       <input id="counter-search" autoFocus ref={counterSearchRef} autoComplete="off" placeholder="Bipe ou digite o produto e pressione Enter"
+        value={productSearch}
+        onChange={e=>{setProductSearch(e.target.value);setCounterChoiceIndex(-1);setCounterError('')}}
+        onKeyDown={e=>{
+         if(e.key==='ArrowDown'&&counterMatches.length){e.preventDefault();setCounterChoiceIndex(i=>Math.min(i+1,counterMatches.length-1));return}
+         if(e.key==='ArrowUp'&&counterMatches.length){e.preventDefault();setCounterChoiceIndex(i=>Math.max(0,i-1));return}
+         if(e.key==='Enter'){e.preventDefault();e.stopPropagation();if(counterSelected)addCounterProduct(counterSelected);else setCounterError('Produto não encontrado. Confira o código ou a descrição.')}
+        }}/>
+       <kbd>F3</kbd>
+      </div>
+      {productSearch&&<div className="counter-suggestions" role="listbox" aria-label="Produtos encontrados">
+       {counterMatches.map((p,i)=><button type="button" key={p.id} className={p.id===counterSelected?.id?'selected':''}
+        onClick={()=>addCounterProduct(p)} role="option" aria-selected={p.id===counterSelected?.id}>
+        <span><b>{p.name}</b><small>{p.barcode||p.sku||p.unit}</small></span><strong>{cash(Number(p.sale_price))}</strong>
+       </button>)}
+       {!counterMatches.length&&<p>Nenhum produto encontrado.</p>}
+      </div>}
+      <div className="counter-entry-grid">
+       <label htmlFor="counter-qty">Quantidade
+        <input id="counter-qty" type="number" min="1" max="100000" step="1" value={counterQty} onChange={e=>setCounterQty(e.target.value)}
+         onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();if(counterSelected)addCounterProduct(counterSelected);else counterSearchRef.current?.focus()}}}/>
+       </label>
+       <label>Preço unitário<input readOnly value={counterPreview?cash(Number(counterPreview.sale_price)):cash(0)} tabIndex={-1}/></label>
+       <label>Total do item<input readOnly value={counterPreview?cash(Number(counterPreview.sale_price)*counterPreviewQty):cash(0)} tabIndex={-1}/></label>
+      </div>
+      <button type="button" className="counter-add" disabled={!counterSelected} onClick={()=>{if(counterSelected)addCounterProduct(counterSelected)}}>+ Adicionar produto <span>Enter</span></button>
+      <details className="counter-more" ref={counterCustomerDetailsRef} defaultOpen={Boolean(editing?.customer_name||editing?.customer_phone||editing?.note)}>
+       <summary>Cliente e observações <span>opcional</span></summary>
+       <div className="counter-more-body">
+        <label>Localizar cliente<input ref={counterCustomerRef} autoComplete="off" placeholder="Nome, telefone ou dois últimos dígitos" value={customerSearch} onChange={e=>setCustomerSearch(e.target.value)}
+         onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();if(customerMatches.length===1)selectSaleCustomer(customerMatches[0])}}}/></label>
+        {customerSearch&&<div className="counter-customer-matches">{customerMatches.map(c=><button type="button" key={c.id} onClick={()=>selectSaleCustomer(c)}>{c.name||'Cliente'} · {c.phone||'Sem telefone'}</button>)}{!customerMatches.length&&<small>Nenhum cliente encontrado. Preencha os campos abaixo.</small>}</div>}
+        <div className="counter-client-fields"><label>Nome<input value={form.customer_name} onChange={e=>updateForm('customer_name',e.target.value)}/></label><label>Telefone<input value={form.customer_phone} onChange={e=>updateForm('customer_phone',e.target.value)}/></label></div>
+        <label>Observações<input value={form.note} onChange={e=>updateForm('note',e.target.value)}/></label>
+       </div>
+      </details>
+      {(counterError||notice)&&<p className="counter-error" role="alert">{counterError||notice}</p>}
+      <p className="counter-help">O código de barras adiciona o produto automaticamente ao pressionar Enter. Ao repetir a leitura, a quantidade é somada.</p>
+     </section>
+     <section className="counter-ticket">
+      <div className="counter-ticket-head"><div><h3>Itens da venda</h3><p>{cart.length} produto{cart.length!==1?'s':''} · {cart.reduce((sum,line)=>sum+line.quantity,0)} unidade(s)</p></div><span className="counter-ticket-badge">{editing?'EDITANDO #'+editing.order_number:'VENDA ATUAL'}</span></div>
+      <div className="counter-ticket-scroll">
+       <table className="counter-ticket-table">
+        <thead><tr><th>#</th><th>Descrição / código</th><th>Quantidade</th><th>Unitário</th><th>Total</th><th aria-label="Remover item"/></tr></thead>
+        <tbody>{cart.map((line,i)=><tr key={line.product.id}>
+         <td className="counter-row-number">{String(i+1).padStart(2,'0')}</td>
+         <td className="counter-item-name"><b>{line.product.name}</b><small>{line.product.barcode||line.product.sku||line.product.unit}</small></td>
+         <td><div className="counter-item-qty"><button type="button" aria-label={'Diminuir '+line.product.name} onClick={()=>changeQty(line.product.id,line.quantity-1)}>−</button>
+          <input type="number" min="1" step="1" aria-label={'Quantidade de '+line.product.name} value={line.quantity} onChange={e=>changeQty(line.product.id,Number(e.target.value))}/>
+          <button type="button" aria-label={'Aumentar '+line.product.name} onClick={()=>changeQty(line.product.id,line.quantity+1)}>+</button></div></td>
+         <td>{admin?<input className="counter-admin-price" aria-label={'Preço unitário de '+line.product.name} type="number" min="0" step=".01" value={line.unit_price}
+           onChange={e=>setCart(lines=>lines.map(x=>x.product.id===line.product.id?{...x,unit_price:Number(e.target.value)}:x))}/>:cash(Number(line.unit_price))}</td>
+         <td className="counter-item-total">{cash(line.quantity*line.unit_price)}</td>
+         <td><button type="button" className="counter-remove" title={'Remover '+line.product.name} aria-label={'Remover '+line.product.name} onClick={()=>changeQty(line.product.id,0)}>×</button></td>
+        </tr>)}</tbody>
+       </table>
+       {!cart.length&&<div className="counter-empty"><span>▤</span><h3>Nenhum item lançado</h3><p>Pesquise um produto ou use o leitor de código de barras para começar.</p></div>}
+      </div>
+      <div className="counter-ticket-summary"><span>Subtotal dos produtos</span><strong>{cash(subtotal)}</strong><small>{cart.reduce((sum,line)=>sum+line.quantity,0)} unidade(s) na venda</small></div>
+     </section>
+    </div>
+    <footer className="counter-footer">
+     <div className="counter-footer-main">
+      <div className="counter-actions">
+       <button type="button" onClick={startFreshCounter}><kbd>F2</kbd> Nova venda</button>
+       <button type="button" onClick={()=>counterSearchRef.current?.focus()}><kbd>F3</kbd> Localizar produto</button>
+       <button type="button" onClick={()=>{if(counterCustomerDetailsRef.current)counterCustomerDetailsRef.current.open=true;counterCustomerRef.current?.focus()}}>Buscar cliente</button>
+       <button type="button" onClick={()=>document.getElementById('counter-discount')?.focus()}><kbd>F6</kbd> Desconto</button>
+       <button type="button" onClick={()=>{if(counterLastOrder)print(counterLastOrder)}} disabled={!counterLastOrder}>Reimprimir última</button>
+       <button type="button" className="counter-cancel" onClick={closeSale}>Cancelar / Esc</button>
+      </div>
+      <div className="counter-payment-bar">
+       <label>Desconto (R$)<input id="counter-discount" type="number" min="0" step=".01" value={form.discount} onChange={e=>updateForm('discount',e.target.value)}/></label>
+       <label>Forma de pagamento<select id="counter-payment" value={form.payment_method} onChange={e=>{updateForm('payment_method',e.target.value);setCounterError('')}}>{Object.keys(paymentLabels).map(k=><option key={k} value={k}>{paymentLabels[k]}</option>)}</select></label>
+       {form.payment_method==='dinheiro'&&<label>Valor recebido (R$)<input type="number" inputMode="decimal" min="0" step=".01" placeholder="Opcional" value={counterTendered} onChange={e=>setCounterTendered(e.target.value)}/></label>}
+       <label className="counter-paid"><input type="checkbox" checked={form.paid} onChange={e=>updateForm('paid',e.target.checked)}/> Pagamento recebido</label>
+       {form.payment_method==='dinheiro'&&counterTendered.trim()&&Number.isFinite(number(counterTendered))&&<div className="counter-change"><small>{number(counterTendered)>=total?'Troco':'Falta receber'}</small><strong>{cash(Math.abs(number(counterTendered)-total))}</strong></div>}
+      </div>
+     </div>
+     <div className="counter-total-panel">
+      <div><span>TOTAL DA VENDA</span><strong>{cash(total)}</strong></div>
+      <button type="submit" disabled={busy||!cart.length}>{busy?'Salvando...':editing?'Salvar alterações':'Finalizar venda'} <span>Ctrl + Enter</span></button>
+     </div>
+    </footer>
+   </form>
+  </section>
+ </div>}
+
+ {saleOpen&&saleChannel==='delivery'&&<div className="overlay sale-overlay"><div className="dialog card sale-workspace" role="dialog" aria-modal="true" aria-label={editing?"Editar venda":"Nova venda"}><div className="dialoghead"><div><h2>{editing?'Editar venda #'+editing.order_number:'Nova venda '+(saleChannel==='delivery'?'Delivery':'Balcão')}</h2><p>F2 abre nova venda · Esc fecha · Enter avança · F4 produtos · F6 endereço · F8 pagamento · Ctrl+Enter salva</p></div><button type="button" className="outline" onClick={closeSale} title="Fechar venda (Esc)">Fechar · Esc ×</button></div><form onKeyDown={advanceField} onSubmit={e=>{e.preventDefault();void saveSale()}}>
  <div className="salegrid"><div className="formleft"><h3>Cliente <small>(opcional)</small></h3>
  <input autoFocus value={customerSearch}
  onKeyDown={e=>{
