@@ -640,6 +640,92 @@ async function editSale(o:Order){if(creditBalances.some(x=>x.order_id===o.id)){s
  <div className="two"><section className="card"><h3>Vendas por canal</h3><p>Delivery <b>{cash(sums.delivery)}</b></p><div className="track"><span style={{width:sum?String(100*sums.delivery/sum)+'%':'0%'}}/></div><p>Balcão <b>{cash(sums.balcao)}</b></p><div className="track"><span style={{width:sum?String(100*sums.balcao/sum)+'%':'0%'}}/></div></section><section className="card"><h3>Resumo de pagamentos</h3><p>Pedidos recebidos: {filtered.filter(o=>o.payment_status==='paid').length}</p><p>A receber: {cash(filtered.filter(o=>o.payment_status==='pending').reduce((s,o)=>s+Number(o.total),0))}</p><small>Lucro dos produtos = itens vendidos − custo − descontos. Taxa de entrega não entra nesse lucro.</small></section></div><section className="card chart"><h3>Faturamento nos últimos 6 meses</h3><div className="monthbars">{monthly.map(m=><div key={m.key} className="monthitem" title={cash(m.value)}><small>{cash(m.value)}</small><div className="monthtrack"><span style={{height:String(Math.max(m.value>0?8:2,Math.round(140*m.value/monthlyMax)))+'px'}}/></div><b>{m.label}</b></div>)}</div></section></>}
  {page==='delivery'&&<><div className="toolbar"><div><h2>Fluxo de pedidos</h2><p>Avance cada pedido com um clique</p></div><button className="primary" onClick={()=>openSale('delivery')}>+ Nova venda · F2</button></div><div className="kanban">{(['pedidos','aguardando_pagamento','entregues'] as const).map(s=><section className="lane" data-stage={s} key={s}><h3>{s==='pedidos'?'Pedidos':s==='entregues'?'Entregues':'Aguardando pagamento'} <span>{activeOrders.filter(o=>o.channel==='delivery'&&o.stage===s).length}</span></h3>{!activeOrders.some(o=>o.channel==='delivery'&&o.stage===s)&&<div className="lane-empty"><span className="lane-empty-icon" aria-hidden="true">{s==='pedidos'?'▤':s==='entregues'?'✓':'◷'}</span><strong>{s==='pedidos'?'Tudo organizado por aqui':s==='entregues'?'Nenhuma entrega concluída':'Nenhum pagamento pendente'}</strong><p>{s==='pedidos'?'Os novos pedidos aparecerão nesta coluna.':s==='entregues'?'Os pedidos entregues e pagos aparecerão aqui.':'Pedidos entregues que ainda precisam ser recebidos aparecerão aqui.'}</p>{s==='pedidos'&&<button type="button" className="outline" onClick={()=>openSale('delivery')}>+ Criar pedido</button>}</div>}{activeOrders.filter(o=>o.channel==='delivery'&&o.stage===s).map(o=><article className="card order" key={o.id}><div className="orderhead"><b>#{o.order_number}</b><small>{fmt(o.sold_at)}</small></div><h3>{o.customer_name||'Cliente não identificado'}</h3><strong>{cash(Number(o.total))}</strong><span className={'payment-pill '+(o.payment_status==='paid'?'is-paid':'is-pending')}>{o.payment_status==='paid'?'✓ Pago':o.collect_on_delivery?'◷ Receber na entrega':'◷ A receber'} · {paymentLabels[o.payment_method]}</span>{o.collect_on_delivery&&o.payment_status==='pending'&&<small className="delivery-card-collection">Valor previsto na entrega: {cash(o.delivery_collection_amount==null?Number(o.total):Number(o.delivery_collection_amount))}</small>}<div className="actions"><button onClick={()=>print(o)}>⎙ Imprimir</button><button onClick={()=>void editSale(o)}>✎ Editar</button>{s!=='entregues'&&<button className="actionnext" onClick={()=>void advance(o)}>{s==='pedidos'?'Marcar entregue':'Confirmar pagamento'} →</button>}{s!=='pedidos'&&<button type="button" className="actionback" title="Devolver este pedido à coluna Pedidos sem alterar o pagamento" onClick={()=>void returnToOrders(o)}>↶ Voltar para Pedidos</button>}</div></article>)}</section>)}</div></>}
  {page==='balcao'&&<><div className="toolbar"><div><h2>Vendas de balcão</h2><p>Venda rápida e reimpressão de comprovantes</p></div><button className="primary" onClick={()=>openSale('balcao')}>+ Nova venda de balcão</button></div><section className="card"><h3>Últimas vendas</h3>{activeOrders.filter(o=>o.channel==='balcao').slice(0,30).map(o=><div className="line-row" key={o.id}><div><b>#{o.order_number}</b><small>{fmt(o.sold_at)}</small></div><strong>{cash(Number(o.total))}</strong><div className="actions"><button onClick={()=>void editSale(o)}>Editar</button><button onClick={()=>print(o)}>Imprimir</button></div></div>)}{!activeOrders.some(o=>o.channel==='balcao')&&<p>Nenhuma venda registrada.</p>}</section></>}
+ 
+ {page==='fiados'&&<div className="credit-page">
+  <div className="credit-heading"><div><h2>Fiados · Contas de clientes</h2><p>Acompanhe compras, saldos devedores e recebimentos registrados.</p></div>
+   <button type="button" className="outline" onClick={()=>void refresh()} disabled={loading}>↻ Atualizar saldos</button></div>
+  <div className="credit-metrics">
+   <article className="card credit-metric"><span>Saldo total em aberto</span><strong>{cash(creditTotalDue)}</strong><small>Valor a receber de compras fiadas</small></article>
+   <article className="card credit-metric"><span>Clientes devendo</span><strong>{creditCustomerCount}</strong><small>{creditByCustomer.length} clientes com histórico de conta</small></article>
+   <article className="card credit-metric"><span>Total já recebido em fiados</span><strong>{cash(creditReceipts.reduce((sum,x)=>sum+Number(x.amount),0))}</strong><small>Recebimentos registrados posteriormente</small></article>
+  </div>
+  <div className="credit-layout">
+   <aside className="card credit-directory">
+    <div className="credit-section-title"><h3>Clientes</h3><span>{creditCustomerRows.length}</span></div>
+    <input type="search" placeholder="Buscar por nome ou telefone" aria-label="Buscar cliente com fiado"
+     value={creditSearch} onChange={e=>setCreditSearch(e.target.value)}/>
+    <div className="credit-customer-list">
+     {creditCustomerRows.map(row=><button type="button" key={row.customer.id}
+      className={creditSelectedCustomer===row.customer.id?'selected':''}
+      onClick={()=>{setCreditSelectedCustomer(row.customer.id);setCreditPaymentError('');setCreditOrderId(null);setCreditOrderItems([])}}>
+      <span><strong>{row.customer.name||'Cliente sem nome'}</strong><small>{row.customer.phone||'Sem telefone'} · {row.count} compra(s)</small></span>
+      <b className={row.balance>0?'credit-owing':'credit-clear'}>{cash(row.balance)}</b>
+     </button>)}
+     {!creditCustomerRows.length&&<div className="credit-empty"><strong>Nenhum cliente encontrado</strong><p>Ao finalizar uma venda em F8 → 5 — Conta, ela aparecerá aqui.</p></div>}
+    </div>
+   </aside>
+   <section className="card credit-details">
+    {chosenCredit?<div className="credit-detail-inner">
+     <div className="credit-detail-heading"><div><small>CONTA DO CLIENTE</small><h3>{chosenCredit.customer.name||'Cliente sem nome'}</h3>
+      <span>{chosenCredit.customer.phone||'Telefone não informado'}</span></div>
+      <span className={chosenCredit.balance>0?'credit-status-due':'credit-status-clear'}>{chosenCredit.balance>0?'Em aberto':'Quitado'}</span>
+     </div>
+     <div className="credit-client-metrics">
+      <div><span>Total fiado</span><strong>{cash(chosenCredit.amount)}</strong></div>
+      <div><span>Já pagou</span><strong>{cash(chosenCredit.paid)}</strong></div>
+      <div><span>Saldo atual</span><strong>{cash(chosenCredit.balance)}</strong></div>
+     </div>
+     {chosenCredit.balance>0&&<form className="credit-receive" onSubmit={e=>void receiveCredit(e)}>
+      <h4>Receber pagamento</h4>
+      <div className="credit-receive-fields">
+       <label>Valor recebido (R$)
+        <input autoComplete="off" inputMode="decimal" placeholder={chosenCredit.balance.toFixed(2).replace('.',',')}
+         value={creditPaymentAmount} onChange={e=>{setCreditPaymentAmount(e.target.value);setCreditPaymentError('')}} required disabled={creditPaymentBusy}/></label>
+       <label>Forma de recebimento
+        <select value={creditPaymentMethod} onChange={e=>setCreditPaymentMethod(e.target.value as 'dinheiro'|'pix'|'cartao')} disabled={creditPaymentBusy}>
+         <option value="pix">Pix</option><option value="dinheiro">Dinheiro</option><option value="cartao">Cartão</option>
+        </select></label>
+       <label>Observação (opcional)
+        <input value={creditPaymentNote} onChange={e=>setCreditPaymentNote(e.target.value)} placeholder="Ex.: Acerto parcial" disabled={creditPaymentBusy}/></label>
+       <button type="submit" className="primary" disabled={creditPaymentBusy}>{creditPaymentBusy?'Registrando...':'Registrar recebimento'}</button>
+      </div>
+      <p>Pagamentos parciais abatem as compras mais antigas. O estoque não é alterado.</p>
+      {creditPaymentError&&<p role="alert" className="credit-error">{creditPaymentError}</p>}
+     </form>}
+     <div className="credit-history-section"><h4>Compras fiadas <span>{chosenCreditSales.length}</span></h4>
+      <div className="credit-table-scroll"><table><thead><tr><th>Venda</th><th>Data</th><th>Fiado</th><th>Já pago</th><th>Em aberto</th><th>Detalhes</th></tr></thead>
+       <tbody>{chosenCreditSales.map(sale=><tr key={sale.id}>
+        <td><b>#{sale.order_number}</b></td><td>{fmt(sale.sold_at)}</td>
+        <td>{cash(Number(sale.credit_amount))}</td><td>{cash(Number(sale.paid_amount))}</td>
+        <td><b className={Number(sale.balance)>0?'credit-owing':'credit-clear'}>{cash(Number(sale.balance))}</b></td>
+        <td><button type="button" className="outline" onClick={()=>void loadCreditItems(sale.order_id)}>
+         {creditOrderId===sale.order_id?'Atualizar itens':'Ver itens'}</button></td>
+       </tr>)}</tbody></table></div>
+      {creditOrderId&&<div className="credit-sale-items">
+       <div className="credit-item-header"><h4>Itens da venda #{chosenCreditSales.find(v=>v.order_id===creditOrderId)?.order_number||'—'}</h4>
+        <button type="button" className="outline" onClick={()=>{setCreditOrderId(null);setCreditOrderItems([])}}>Fechar ×</button></div>
+       {creditItemsLoading?<p>Consultando itens...</p>:<table><thead><tr><th>Produto</th><th>Qtd.</th><th>Unitário</th><th>Total</th></tr></thead>
+        <tbody>{creditOrderItems.map(item=><tr key={item.id}>
+         <td>{item.product_name}</td><td>{Number(item.quantity)}</td><td>{cash(Number(item.unit_price))}</td><td>{cash(Number(item.line_total))}</td>
+        </tr>)}</tbody></table>}
+      </div>}
+     </div>
+     <div className="credit-history-section"><h4>Histórico de recebimentos <span>{chosenCreditReceipts.length}</span></h4>
+      {chosenCreditReceipts.length?<div className="credit-table-scroll"><table><thead><tr><th>Data</th><th>Forma</th><th>Valor</th><th>Compras quitadas / abatidas</th></tr></thead>
+       <tbody>{chosenCreditReceipts.map(receipt=><tr key={receipt.id}>
+        <td>{fmt(receipt.received_at)}</td>
+        <td>{paymentLabels[receipt.method]}</td>
+        <td><strong className="credit-clear">{cash(Number(receipt.amount))}</strong>{receipt.note&&<small className="credit-note">{receipt.note}</small>}</td>
+        <td>{creditAllocations.filter(a=>a.receipt_id===receipt.id).map(a=>{
+         const related=chosenCreditSales.find(sale=>sale.id===a.credit_sale_id);
+         return <span className="credit-allocation" key={a.credit_sale_id}>#{related?.order_number||'—'} · {cash(Number(a.amount))}</span>
+        })}</td>
+       </tr>)}</tbody></table></div>:<p className="credit-no-history">Nenhum recebimento ainda registrado nesta conta.</p>}
+     </div>
+    </div>:<div className="credit-instructions"><span aria-hidden="true">▧</span><h3>Escolha um cliente</h3><p>Selecione uma conta na lista para consultar todas as compras fiadas, pagamentos e saldo restante.</p></div>}
+   </section>
+  </div>
+ </div>}
  {page==='produtos'&&<><div className="toolbar"><div><h2>Produtos e categorias</h2><p>Preço de custo, venda e estoque opcional</p></div>{admin&&<button className="primary" onClick={()=>openProduct()}>+ Cadastrar produto</button>}</div><input className="fullsearch" placeholder="Buscar produto, código de barras ou SKU" value={query} onChange={e=>setQuery(e.target.value)}/><section className="card"><div className="tablewrap"><table><thead><tr><th>Produto</th><th>Categoria</th><th>Custo</th><th>Venda</th><th>Estoque</th><th></th></tr></thead><tbody>{products.filter(p=>(p.name+' '+p.barcode+' '+p.sku).toLowerCase().includes(query.toLowerCase())).map(p=><tr key={p.id}><td><b>{p.name}</b><small>{p.unit} · {p.active?'Ativo':'Inativo'}</small></td><td>{cats.find(x=>x.id===p.category_id)?.name||'Outros'}</td><td>{cash(Number(p.purchase_price))}</td><td>{cash(Number(p.sale_price))}</td><td>{p.track_stock?String(p.stock_qty):'Não controlado'}</td><td>{admin&&<button className="outline" onClick={()=>openProduct(p)}>Editar</button>}</td></tr>)}</tbody></table></div></section>{admin&&<section className="card categories"><h3>Categorias</h3><div className="actions">{cats.map(c=><span className="chip" key={c.id}>{c.name}</span>)}</div><div className="actions"><input placeholder="Nova categoria" value={catName} onChange={e=>setCatName(e.target.value)}/><button className="outline" onClick={()=>void addCategory()}>Adicionar</button></div></section>}</>}
  {page==='clientes'&&<><div className="toolbar"><h2>Clientes</h2><button className="primary" onClick={()=>openCustomer()}>+ Novo cliente</button></div><input className="fullsearch" placeholder="Buscar por nome ou telefone" value={customerQuery} onChange={e=>setCustomerQuery(e.target.value)}/><section className="card"><div className="tablewrap"><table><thead><tr><th>Nome</th><th>Telefone</th><th>Endereço</th><th>Pedidos</th><th></th></tr></thead><tbody>{customers.filter(c=>(c.name+' '+c.phone).toLowerCase().includes(customerQuery.toLowerCase())).map(c=><tr key={c.id}><td>{c.name||'—'}</td><td>{c.phone||'—'}</td><td>{[c.street,c.house_number,c.neighborhood].filter(Boolean).join(', ')||'—'}</td><td>{orders.filter(o=>o.customer_id===c.id&&o.status==='active').length}</td><td><button className="outline" onClick={()=>openCustomer(c)}>Editar</button></td></tr>)}</tbody></table></div></section></>}
  {page==='relatorios'&&<><div className="toolbar"><h2>Histórico de vendas</h2><div className="actions"><input placeholder="Número, nome ou telefone" value={orderQuery} onChange={e=>setOrderQuery(e.target.value)}/><button className="outline" onClick={()=>{const rows=[['Pedido','Data','Canal','Total','Pagamento'],...orders.map(o=>[String(o.order_number),fmt(o.sold_at),o.channel,String(o.total),o.payment_status])];const csv=rows.map(r=>r.map(v=>'"'+v.replace(/"/g,'""')+'"').join(';')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv'}));a.download='geladao-vendas.csv';a.click();URL.revokeObjectURL(a.href)}}>Exportar CSV</button></div></div><section className="card"><div className="tablewrap"><table><thead><tr><th>Pedido</th><th>Data</th><th>Canal</th><th>Total</th><th>Pagamento</th><th>Ações</th></tr></thead><tbody>{orders.filter(o=>(String(o.order_number)+' '+o.customer_name+' '+o.customer_phone).toLowerCase().includes(orderQuery.toLowerCase())).map(o=><tr key={o.id}><td>#{o.order_number}{o.status==='cancelled'?' · Cancelado':''}</td><td>{fmt(o.sold_at)}</td><td>{o.channel}</td><td>{cash(Number(o.total))}</td><td>{o.payment_status==='paid'?'Recebido':'Pendente'}</td><td><div className="actions"><button className="outline" onClick={()=>print(o)}>Imprimir</button>{o.status==='active'&&<><button className="outline" onClick={()=>void editSale(o)}>Editar</button>{admin&&<button className="danger" onClick={()=>void cancel(o)}>Cancelar</button>}</>}</div></td></tr>)}</tbody></table></div></section></>}
