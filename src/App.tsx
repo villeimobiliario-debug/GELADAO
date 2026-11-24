@@ -22,6 +22,164 @@ const shortDay=(d:Date)=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Fort
 const number=(s:string)=>Number(String(s||0).trim().replace(',','.'));
 const escapeHtml=(x:unknown)=>String(x??'').replace(/[&<>"']/g,a=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[a]||a));
 function newForm(c?:Customer):Form{return {...initialForm,customer_id:c?.id||'',customer_name:c?.name||'',customer_phone:c?.phone||'',street:c?.street||'',neighborhood:c?.neighborhood||'',house_number:c?.house_number||'',complement:c?.complement||''}}
+
+type CounterMethod='dinheiro'|'pix'|'cartao';
+type CounterPayment={method:CounterMethod;amount:number;tendered_amount:number|null};
+type CounterPayStage='choose'|'cash'|'confirm'|'split';
+function paymentCents(input:string):number|null{
+ const v=input.trim().replace(',','.');
+ if(!/^(?:0|[1-9][0-9]{0,5})(?:\.[0-9]{1,2})?$/.test(v))return null;
+ const result=Math.round(Number(v)*100);
+ return Number.isSafeInteger(result)&&result>=0&&result<=99999999?result:null;
+}
+function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfirm,busy,externalError}:{
+ total:number;discount:string;onDiscountChange:(value:string)=>void;onClose:()=>void;
+ onConfirm:(lines:CounterPayment[])=>void;busy:boolean;externalError:string;
+}){
+ const [stage,setStage]=useState<CounterPayStage>('choose');
+ const [selected,setSelected]=useState<CounterMethod|null>(null);
+ const [cashReceived,setCashReceived]=useState('');
+ const [splitLines,setSplitLines]=useState<CounterPayment[]>([]);
+ const [splitMethod,setSplitMethod]=useState<CounterMethod|null>(null);
+ const [splitAmount,setSplitAmount]=useState('');
+ const [splitTendered,setSplitTendered]=useState('');
+ const [error,setError]=useState('');
+ const dialogRef=useRef<HTMLDivElement>(null),cashRef=useRef<HTMLInputElement>(null),splitRef=useRef<HTMLInputElement>(null);
+ const totalCents=Math.round(total*100);
+ const remaining=totalCents-splitLines.reduce((sum,p)=>sum+Math.round(p.amount*100),0);
+ const cashCents=cashReceived.trim()?paymentCents(cashReceived):totalCents;
+ const cashChange=cashCents===null?null:cashCents-totalCents;
+ const payNames:Record<CounterMethod,string>={dinheiro:'Dinheiro',pix:'Pix',cartao:'Cartão'};
+ useEffect(()=>{setStage('choose');setSelected(null);setSplitLines([]);setSplitMethod(null);setSplitAmount('');setError('')},[total]);
+ useEffect(()=>{
+  if(stage==='cash')cashRef.current?.focus();
+  else if(stage==='split'&&splitMethod)splitRef.current?.focus();
+  else dialogRef.current?.focus();
+ },[stage,splitMethod]);
+ const chooseMethod=(method:CounterMethod)=>{
+  if(busy)return;
+  setSelected(method);setError('');
+  if(method==='dinheiro'){setCashReceived('');setStage('cash')}
+  else setStage('confirm');
+ };
+ const startSplit=()=>{
+  if(busy)return;
+  setSelected(null);setSplitLines([]);setSplitMethod(null);setSplitAmount('');setSplitTendered('');setError('');setStage('split');
+ };
+ const addSplit=()=>{
+  if(busy||!splitMethod)return;
+  if(splitLines.length>=8){setError('Limite de oito parcelas por venda.');return}
+  const amount=splitAmount.trim()?paymentCents(splitAmount):remaining;
+  if(amount===null||amount<=0||amount>remaining){setError('Valor inválido: informe até o restante da venda.');return}
+  let tendered:number|null=null;
+  if(splitMethod==='dinheiro'&&splitTendered.trim()){
+   tendered=paymentCents(splitTendered);
+   if(tendered===null||tendered<amount){setError('O dinheiro entregue deve cobrir a parcela.');return}
+  }
+  setSplitLines(prev=>[...prev,{method:splitMethod,amount:amount/100,tendered_amount:tendered===null?null:tendered/100}]);
+  setSplitMethod(null);setSplitAmount('');setSplitTendered('');setError('');
+ };
+ const confirm=()=>{
+  if(busy)return;
+  if(!Number.isFinite(total)||totalCents<=0||totalCents>99999999){setError('O total precisa ser maior que zero e inferior a R$ 1 milhão.');return}
+  if(stage==='confirm'&&selected){onConfirm([{method:selected,amount:totalCents/100,tendered_amount:null}]);return}
+  if(stage==='cash'){
+   if(cashCents===null||cashCents<totalCents){setError('Informe um valor recebido suficiente.');return}
+   onConfirm([{method:'dinheiro',amount:totalCents/100,tendered_amount:cashReceived.trim()?cashCents/100:null}]);return;
+  }
+  if(stage==='split'){
+   if(splitMethod){addSplit();return}
+   if(remaining!==0||splitLines.length<2||new Set(splitLines.map(p=>p.method)).size<2){
+    setError('Distribua todo o total entre pelo menos duas formas diferentes.');return;
+   }
+   onConfirm(splitLines);
+  }
+ };
+ const keys=(e:ReactKey<HTMLDivElement>)=>{
+  if(e.key==='Escape'){e.preventDefault();e.stopPropagation();onClose();return}
+  if(busy)return;
+  if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();e.stopPropagation();confirm();return}
+  const input=(e.target as HTMLElement).tagName==='INPUT';
+  if(stage==='choose'&&!input&&['1','2','3','4'].includes(e.key)){
+   e.preventDefault();e.stopPropagation();
+   if(e.key==='4')startSplit();
+   else chooseMethod(({1:'dinheiro',2:'pix',3:'cartao'} as Record<string,CounterMethod>)[e.key]);
+   return;
+  }
+  if(stage==='split'&&!splitMethod&&!input&&['1','2','3'].includes(e.key)){
+   e.preventDefault();e.stopPropagation();
+   setSplitMethod(({1:'dinheiro',2:'pix',3:'cartao'} as Record<string,CounterMethod>)[e.key]);setError('');
+   return;
+  }
+  if(stage==='split'&&!splitMethod&&!input&&e.key==='Backspace'&&splitLines.length){
+   e.preventDefault();e.stopPropagation();setSplitLines(prev=>prev.slice(0,-1));setError('');return;
+  }
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();e.stopPropagation();confirm()}
+ };
+ return <div className="counter-pay-overlay">
+  <div className="counter-pay-dialog" role="dialog" aria-modal="true" aria-label="Finalizar venda"
+   tabIndex={-1} ref={dialogRef} onKeyDown={keys}>
+   <header className="counter-pay-header"><div><small>GELADÃO · FRENTE DE CAIXA</small><h2>Finalizar venda</h2></div>
+    <button type="button" aria-label="Voltar à venda" onClick={onClose} disabled={busy}>×</button></header>
+   <div className="counter-pay-total"><span>TOTAL A PAGAR</span><strong>{cash(total)}</strong></div>
+   <div className="counter-pay-discount"><label htmlFor="counter-discount">Desconto (R$)</label>
+    <input id="counter-discount" type="number" min="0" step=".01" disabled={busy} value={discount}
+     onChange={e=>onDiscountChange(e.target.value)}/></div>
+   {stage==='choose'&&<section className="counter-pay-body"><h3>Forma de pagamento</h3>
+    <div className="counter-pay-options">
+     <button type="button" onClick={()=>chooseMethod('dinheiro')}><kbd>1</kbd><span>▤</span><strong>Dinheiro</strong></button>
+     <button type="button" onClick={()=>chooseMethod('pix')}><kbd>2</kbd><span>▦</span><strong>Pix</strong></button>
+     <button type="button" onClick={()=>chooseMethod('cartao')}><kbd>3</kbd><span>▣</span><strong>Cartão</strong></button>
+     <button type="button" onClick={startSplit}><kbd>4</kbd><span>⇄</span><strong>Dividir pagamento</strong></button>
+    </div>
+    <p className="counter-pay-hint">Digite 1, 2, 3 ou 4. Pagamento integral usa automaticamente o valor total.</p>
+   </section>}
+   {stage==='confirm'&&<section className="counter-pay-body counter-pay-ready">
+    <h3>{selected?payNames[selected]:''}</h3><p>Pagamento integral de <strong>{cash(total)}</strong></p>
+    <p className="counter-pay-hint">Confirme o recebimento antes de registrar a venda.</p>
+    <button type="button" className="counter-pay-finish" onClick={confirm} disabled={busy}>{busy?'Salvando...':'Confirmar pagamento · Enter'}</button>
+    <button type="button" className="counter-pay-back" onClick={()=>setStage('choose')} disabled={busy}>Alterar forma</button>
+   </section>}
+   {stage==='cash'&&<section className="counter-pay-body counter-pay-cash"><h3>Pagamento em dinheiro</h3>
+    <label htmlFor="counter-cash-received">Valor entregue pelo cliente (R$)</label>
+    <input id="counter-cash-received" ref={cashRef} autoComplete="off" inputMode="decimal" disabled={busy}
+     placeholder={cash(total)} value={cashReceived} onChange={e=>{setCashReceived(e.target.value);setError('')}}/>
+    <div className="counter-pay-change"><span>Troco</span><strong>{cash(cashChange===null||cashChange<0?0:cashChange/100)}</strong></div>
+    <p className="counter-pay-hint">Valor vazio = pagamento exato. Digite o recebido e pressione Enter.</p>
+    <button type="button" className="counter-pay-finish" onClick={confirm} disabled={busy}>{busy?'Salvando...':'Confirmar dinheiro · Enter'}</button>
+    <button type="button" className="counter-pay-back" onClick={()=>setStage('choose')} disabled={busy}>Alterar forma</button>
+   </section>}
+   {stage==='split'&&<section className="counter-pay-body counter-pay-split"><h3>Dividir pagamento</h3>
+    <div className="counter-pay-remaining"><span>Restante a pagar</span><strong>{cash(Math.max(0,remaining)/100)}</strong></div>
+    {splitLines.length>0&&<div className="counter-pay-lines">{splitLines.map((line,i)=><div key={i}>
+     <span>{i+1}. {payNames[line.method]}</span><strong>{cash(line.amount)}</strong>
+     <button type="button" aria-label={'Remover parcela '+(i+1)}
+      onClick={()=>{setSplitLines(v=>v.filter((_,j)=>j!==i));setError('')}}>×</button>
+    </div>)}</div>}
+    {remaining>0&&<div className="counter-pay-pick"><p>Próxima forma · teclas 1, 2 ou 3</p>
+     <div>{(['dinheiro','pix','cartao'] as CounterMethod[]).map((v,i)=><button key={v} type="button"
+       className={v===splitMethod?'selected':''} onClick={()=>{setSplitMethod(v);setError('')}}><kbd>{i+1}</kbd> {payNames[v]}</button>)}</div>
+    </div>}
+    {splitMethod&&remaining>0&&<div className="counter-pay-entry">
+      <label htmlFor="counter-split-amount">Valor em {payNames[splitMethod]} (R$)</label>
+      <input id="counter-split-amount" ref={splitRef} inputMode="decimal" autoComplete="off" disabled={busy}
+       placeholder={cash(remaining/100)} value={splitAmount} onChange={e=>{setSplitAmount(e.target.value);setError('')}}/>
+      {splitMethod==='dinheiro'&&<><label htmlFor="counter-split-received">Dinheiro entregue (opcional)</label>
+       <input id="counter-split-received" inputMode="decimal" autoComplete="off" disabled={busy}
+        placeholder="Em branco = valor exato" value={splitTendered} onChange={e=>setSplitTendered(e.target.value)}/></>}
+      <button type="button" className="counter-pay-add" onClick={addSplit} disabled={busy}>Adicionar parcela · Enter</button>
+    </div>}
+    {remaining===0&&<div className="counter-pay-complete"><strong>Pagamento completo!</strong><p>Enter confirma a venda.</p></div>}
+    <div className="counter-pay-split-actions"><button type="button" className="counter-pay-back" disabled={busy} onClick={()=>setStage('choose')}>Voltar</button>
+     {remaining===0&&<button type="button" className="counter-pay-finish" onClick={confirm} disabled={busy}>{busy?'Salvando...':'Finalizar · Enter'}</button>}</div>
+    <p className="counter-pay-hint">Digite a forma, o valor e Enter. Valor vazio usa o saldo restante. Backspace desfaz a última parcela.</p>
+   </section>}
+   {(error||externalError)&&<p className="counter-pay-error" role="alert">{error||externalError}</p>}
+   <footer className="counter-pay-footer"><span>Esc · Voltar</span><span>Enter · Avançar / Confirmar</span></footer>
+  </div>
+ </div>;
+}
+
 function App(){
  const [user,setUser]=useState<User|null>(null),[authReady,setAuthReady]=useState(false);
  const [staff,setStaff]=useState<Staff|null>(null),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false);
