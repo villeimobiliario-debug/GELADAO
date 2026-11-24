@@ -3,18 +3,21 @@ import type {KeyboardEvent as ReactKey,FormEvent} from 'react';
 import type {User} from '@supabase/supabase-js';
 import {supabase as sb} from './supabase';
 
-type Page='dashboard'|'balcao'|'delivery'|'produtos'|'clientes'|'relatorios'|'config';
+type Page='dashboard'|'balcao'|'delivery'|'fiados'|'produtos'|'clientes'|'relatorios'|'config';
 type Staff={user_id:string;role:'admin'|'operador';active:boolean;display_name:string};
 type Cat={id:number;name:string;active:boolean};
 type Product={id:string;category_id:number|null;name:string;sku:string|null;barcode:string|null;unit:string;purchase_price:number;sale_price:number;track_stock:boolean;stock_qty:number;min_stock:number;active:boolean};
 type Customer={id:string;name:string|null;phone:string|null;street:string|null;neighborhood:string|null;house_number:string|null;complement:string|null;active:boolean};
 type Order={id:string;order_number:number;channel:'delivery'|'balcao';stage:'pedidos'|'entregues'|'aguardando_pagamento';status:string;version:number;customer_id:string|null;customer_name:string|null;customer_phone:string|null;street:string|null;neighborhood:string|null;house_number:string|null;complement:string|null;note:string|null;subtotal:number;delivery_fee:number;discount:number;total:number;cost_total:number;payment_method:string;payment_status:'paid'|'pending';collect_on_delivery:boolean;delivery_collection_amount:number|null;sold_at:string;created_at:string;delivered_at:string|null};
+type CreditBalance={id:string;order_id:string;customer_id:string;credit_amount:number;paid_amount:number;balance:number;created_at:string;created_by:string;order_number:number;total:number;sold_at:string;order_note:string|null;order_status:string};
+type CreditReceipt={id:string;customer_id:string;amount:number;method:'dinheiro'|'pix'|'cartao';note:string|null;request_id:string;received_at:string;created_by:string};
+type CreditAllocation={receipt_id:string;credit_sale_id:string;amount:number};
 type Line={product:Product;quantity:number;unit_price:number};
 type Form={customer_id:string;customer_name:string;customer_phone:string;street:string;neighborhood:string;house_number:string;complement:string;note:string;delivery_fee:string;discount:string;payment_method:string;paid:boolean;collect_on_delivery:boolean;delivery_collection_amount:string};
 type Settings={store_name:string;store_subtitle:string;store_phone:string|null;store_address:string|null;receipt_footer:string|null;auto_print:boolean};
-const tabs:[Page,string,string][]=[['dashboard','Dashboard','▦'],['balcao','PDV Balcão','▤'],['delivery','PDV Delivery','▥'],['produtos','Produtos','◫'],['clientes','Clientes','♙'],['relatorios','Relatórios','▧'],['config','Configurações','⚙']];
+const tabs:[Page,string,string][]=[['dashboard','Dashboard','▦'],['balcao','PDV Balcão','▤'],['delivery','PDV Delivery','▥'],['fiados','Fiados','▧'],['produtos','Produtos','◫'],['clientes','Clientes','♙'],['relatorios','Relatórios','▧'],['config','Configurações','⚙']];
 const initialForm:Form={customer_id:'',customer_name:'',customer_phone:'',street:'',neighborhood:'',house_number:'',complement:'',note:'',delivery_fee:'0',discount:'0',payment_method:'nao_informado',paid:false,collect_on_delivery:false,delivery_collection_amount:''};
-const paymentLabels:{[key:string]:string}={nao_informado:'Não informado',dinheiro:'Dinheiro',pix:'Pix',cartao:'Cartão',misto:'Misto'};
+const paymentLabels:{[key:string]:string}={nao_informado:'Não informado',dinheiro:'Dinheiro',pix:'Pix',cartao:'Cartão',misto:'Misto',conta:'Conta / Fiado'};
 const cash=(n:number)=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const fmt=(iso:string)=>new Date(iso).toLocaleString('pt-BR',{timeZone:'America/Fortaleza',dateStyle:'short',timeStyle:'short'});
 const day=(iso:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Fortaleza',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(iso));
@@ -265,6 +268,10 @@ function App(){
  const [page,setPage]=useState<Page>('dashboard'),[menu,setMenu]=useState(false),[mobile,setMobile]=useState(false),[notice,setNotice]=useState(''),[loading,setLoading]=useState(false);
  const [staffMembers,setStaffMembers]=useState<Staff[]>([]),[memberEmail,setMemberEmail]=useState(''),[memberRole,setMemberRole]=useState('operador'),[memberActive,setMemberActive]=useState(true);
  const [cats,setCats]=useState<Cat[]>([]),[products,setProducts]=useState<Product[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[orders,setOrders]=useState<Order[]>([]);
+ const [creditBalances,setCreditBalances]=useState<CreditBalance[]>([]),[creditReceipts,setCreditReceipts]=useState<CreditReceipt[]>([]),[creditAllocations,setCreditAllocations]=useState<CreditAllocation[]>([]);
+ const [creditSearch,setCreditSearch]=useState(''),[creditSelectedCustomer,setCreditSelectedCustomer]=useState<string|null>(null);
+ const [creditPaymentAmount,setCreditPaymentAmount]=useState(''),[creditPaymentMethod,setCreditPaymentMethod]=useState<'dinheiro'|'pix'|'cartao'>('pix'),[creditPaymentNote,setCreditPaymentNote]=useState(''),[creditPaymentBusy,setCreditPaymentBusy]=useState(false),[creditPaymentError,setCreditPaymentError]=useState('');
+ const creditPaymentRequestId=useRef(crypto.randomUUID());
  const [settings,setSettings]=useState<Settings>({store_name:'GELADÃO',store_subtitle:'Distribuidora de Bebidas',store_phone:'',store_address:'',receipt_footer:'Obrigado pela preferência!',auto_print:false});
  const [period,setPeriod]=useState('hoje'),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [query,setQuery]=useState(''),[customerQuery,setCustomerQuery]=useState(''),[orderQuery,setOrderQuery]=useState('');
@@ -283,16 +290,21 @@ function App(){
  const updateForm=(key:keyof Form,value:string|boolean)=>setForm(f=>({...f,[key]:value}));
  const loadStaff=useCallback(async(id:string)=>{const{data,error}=await sb.from('staff_profiles').select('user_id,role,active,display_name').eq('user_id',id).maybeSingle();if(error)showError(error.message);setStaff((data||null) as Staff|null)},[]);
  const refresh=useCallback(async()=>{setLoading(true);try{
-  const [a,b,c,d,e,f]=await Promise.all([
+  const [a,b,c,d,e,f,g,h,i]=await Promise.all([
     sb.from('categories').select('*').order('name'),
     sb.from('products').select('*').order('name'),
     sb.from('customers').select('*').order('name'),
     sb.from('orders').select('*').order('sold_at',{ascending:false}).limit(5000),
     sb.from('app_settings').select('*').eq('id',1).single(),
-    sb.from('staff_profiles').select('*').order('created_at')
+    sb.from('staff_profiles').select('*').order('created_at'),
+    sb.from('credit_sale_balances').select('*').order('sold_at',{ascending:false}).limit(5000),
+    sb.from('credit_receipts').select('*').order('received_at',{ascending:false}).limit(5000),
+    sb.from('credit_receipt_allocations').select('*').limit(5000)
   ]);
-  const err=a.error||b.error||c.error||d.error||e.error||f.error;if(err)throw err;
-  setCats((a.data||[]) as Cat[]);setProducts((b.data||[]) as Product[]);setCustomers((c.data||[]) as Customer[]);setOrders((d.data||[]) as Order[]);setStaffMembers((f.data||[]) as Staff[]);if(e.data)setSettings(e.data as Settings);
+  const err=a.error||b.error||c.error||d.error||e.error||f.error||g.error||h.error||i.error;if(err)throw err;
+  setCats((a.data||[]) as Cat[]);setProducts((b.data||[]) as Product[]);setCustomers((c.data||[]) as Customer[]);setOrders((d.data||[]) as Order[]);setStaffMembers((f.data||[]) as Staff[]);
+  setCreditBalances((g.data||[]) as CreditBalance[]);setCreditReceipts((h.data||[]) as CreditReceipt[]);setCreditAllocations((i.data||[]) as CreditAllocation[]);
+  if(e.data)setSettings(e.data as Settings);
   if((d.data||[]).length>=5000)setNotice('Relatórios limitados aos últimos 5.000 pedidos. Consulte um administrador para exportação completa.');
  }catch(err){showError(err)}finally{setLoading(false)}},[]);
  useEffect(()=>{void sb.auth.getUser().then(({data})=>{setUser(data.user);setAuthReady(true)}).catch(err=>{showError(err);setAuthReady(true)});
@@ -395,7 +407,7 @@ function App(){
    if(hasUnsavedChanges&&!window.confirm('Descartar alterações desta venda?'))return;
    setSaleOpen(false);
  }
- async function editSale(o:Order){setLoading(true);try{const {data,error}=await sb.from('order_items').select('*').eq('order_id',o.id);if(error)throw error;
+ async function editSale(o:Order){if(creditBalances.some(x=>x.order_id===o.id)){setNotice('Venda fiada protegida: confira as compras e recebimentos na aba Fiados.');setPage('fiados');setCreditSelectedCustomer(o.customer_id);return}setLoading(true);try{const {data,error}=await sb.from('order_items').select('*').eq('order_id',o.id);if(error)throw error;
   const lines:Line[]=[];for(const item of data||[]){const p=products.find(v=>v.id===item.product_id);if(p)lines.push({product:p,quantity:Number(item.quantity),unit_price:Number(item.unit_price)})}
   if(lines.length!==(data||[]).length)throw Error('Produto de algum item não está disponível no cadastro.');
   setSaleChannel(o.channel);setEditing(o);setForm({customer_id:o.customer_id||'',customer_name:o.customer_name||'',customer_phone:o.customer_phone||'',street:o.street||'',neighborhood:o.neighborhood||'',house_number:o.house_number||'',complement:o.complement||'',note:o.note||'',delivery_fee:String(o.delivery_fee),discount:String(o.discount),payment_method:o.payment_method,paid:o.payment_status==='paid',collect_on_delivery:o.collect_on_delivery||false,delivery_collection_amount:o.delivery_collection_amount==null?'':String(o.delivery_collection_amount)});setCart(lines);setProductSearch('');setCustomerSearch('');setCounterQty('1');setCounterPaymentError('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(lines.length?lines[lines.length-1].product.id:null);setCounterPendingProductId(null);setCounterPaymentOpen(false);setSaleOpen(true)
@@ -427,12 +439,22 @@ function App(){
   window.requestAnimationFrame(()=>counterSearchRef.current?.focus());
  }
  const subtotal=cart.reduce((s,x)=>s+x.quantity*x.unit_price,0),total=Math.max(0,subtotal+number(form.delivery_fee)-number(form.discount));
- async function saveSale(payments?:CounterPayment[]){if(busy)return;
+ async function saveSale(payments?:CounterPayment[],creditCustomerId?:string){if(busy)return;
+  const creditAmount=payments?.filter(p=>p.method==='conta').reduce((sum,p)=>sum+p.amount,0)||0;
+  const creditCustomer=creditAmount>0?customers.find(c=>c.id===creditCustomerId&&c.active):undefined;
+  if(creditAmount>0&&(!creditCustomer||saleChannel!=='balcao'||editing)){
+   setCounterPaymentError('Fiado exige cliente cadastrado ativo e uma nova venda de balcão.');return;
+  }
   if(saleChannel==='balcao'&&!payments){
    if(!cart.length){setNotice('Adicione ao menos um produto.');return}
    setCounterPaymentError('');setCounterPaymentOpen(true);return;
   }
-  const effectiveForm=payments?{...form,payment_method:payments.length>1?'misto':payments[0]?.method||'nao_informado',paid:true}:form;
+  const effectiveForm=payments?{...form,
+    customer_id:creditCustomer?.id||form.customer_id,
+    customer_name:creditCustomer?(creditCustomer.name||''):form.customer_name,
+    customer_phone:creditCustomer?(creditCustomer.phone||''):form.customer_phone,
+    payment_method:creditAmount>0?(payments.length===1?'conta':'misto'):(payments.length>1?'misto':payments[0]?.method||'nao_informado'),
+    paid:creditAmount===0}:form;
   if(payments){
    const sum=Math.round(payments.reduce((n,p)=>n+p.amount,0)*100);
    if(!payments.length||sum!==Math.round(total*100)||payments.some(p=>!Number.isFinite(p.amount)||p.amount<=0||
@@ -454,8 +476,14 @@ function App(){
    }
    const payload={channel:saleChannel,customer_id:customerId,customer_name:effectiveForm.customer_name,customer_phone:effectiveForm.customer_phone,street:effectiveForm.street,neighborhood:effectiveForm.neighborhood,house_number:effectiveForm.house_number,complement:effectiveForm.complement,note:effectiveForm.note,delivery_fee:saleChannel==='balcao'?0:number(effectiveForm.delivery_fee),discount:number(effectiveForm.discount),payment_method:effectiveForm.payment_method,paid:effectiveForm.paid,collect_on_delivery:saleChannel==='delivery'&&effectiveForm.collect_on_delivery,delivery_collection_amount:saleChannel==='delivery'&&effectiveForm.collect_on_delivery&&effectiveForm.delivery_collection_amount.trim()?number(effectiveForm.delivery_collection_amount):null,request_id:editing?undefined:requestId.current,items:cart.map(l=>({product_id:l.product.id,quantity:l.quantity,...(admin?{unit_price:l.unit_price}:{})}))};
    const args={p_data:payload,p_order_id:editing?.id||null,p_expected_version:editing?.version||null};
-   const {error}=payments&&saleChannel==='balcao'
-      ?await sb.rpc('save_balcao_checkout',{...args,p_payments:payments.map(p=>({method:p.method,amount:p.amount.toFixed(2),tendered_amount:p.tendered_amount===null?null:p.tendered_amount.toFixed(2)}))})
+   const payPayload=payments?.filter(p=>p.method!=='conta').map(p=>({
+     method:p.method,amount:p.amount.toFixed(2),
+     tendered_amount:p.tendered_amount===null?null:p.tendered_amount.toFixed(2)
+   }))||[];
+   const {error}=creditAmount>0
+     ?await sb.rpc('save_balcao_credit',{p_data:payload,p_payments:payPayload,p_credit_amount:Number(creditAmount.toFixed(2))})
+     :payments&&saleChannel==='balcao'
+      ?await sb.rpc('save_balcao_checkout',{...args,p_payments:payPayload})
       :await sb.rpc('save_order',args);
    if(error)throw error;
    setSaleOpen(false);setEditing(null);requestId.current=crypto.randomUUID();setNotice('Venda salva no banco de dados.');await refresh()
@@ -472,7 +500,7 @@ function App(){
    setNotice('Pedido #'+o.order_number+' devolvido à coluna Pedidos. Informações de pagamento preservadas.');
   }catch(err){showError(err)}
  }
- async function cancel(o:Order){if(!admin||!window.confirm('Cancelar pedido #'+o.order_number+'? O estoque controlado será devolvido, mas o sistema NÃO estorna pagamentos. Confirme o estorno manualmente quando necessário.'))return;try{const{error}=await sb.rpc('cancel_order',{p_order_id:o.id,p_expected_version:o.version});if(error)throw error;await refresh()}catch(err){showError(err)}}
+ async function cancel(o:Order){if(creditBalances.some(x=>x.order_id===o.id)){setNotice('Uma venda fiada não pode ser cancelada pelo histórico: o saldo precisa de estorno auditável.');return}if(!admin||!window.confirm('Cancelar pedido #'+o.order_number+'? O estoque controlado será devolvido, mas o sistema NÃO estorna pagamentos. Confirme o estorno manualmente quando necessário.'))return;try{const{error}=await sb.rpc('cancel_order',{p_order_id:o.id,p_expected_version:o.version});if(error)throw error;await refresh()}catch(err){showError(err)}}
  function print(o:Order){const w=window.open('','_blank','width=440,height=680');if(!w){setNotice('Permita janelas pop-up para imprimir.');return}
   w.document.write('<p>Preparando cupom...</p>');void (async()=>{try{
    const [{data,error},{data:paymentParts,error:payError}]=await Promise.all([
@@ -664,7 +692,9 @@ function App(){
       total={total} discount={form.discount}
       onDiscountChange={value=>{updateForm('discount',value);setCounterPaymentError('')}}
       onClose={()=>{if(!busy){setCounterPaymentOpen(false);counterSearchRef.current?.focus()}}}
-      onConfirm={payments=>{void saveSale(payments)}} busy={busy}
+      onConfirm={(payments,customerId)=>{void saveSale(payments,customerId)}} busy={busy}
+      customers={customers} balances={Object.fromEntries(customers.map(c=>[c.id,creditBalances.filter(x=>x.customer_id===c.id).reduce((sum,x)=>sum+Number(x.balance),0)]))}
+      defaultCustomerId={form.customer_id}
       externalError={counterPaymentError}/>}
     <div className="counter-bottom-summary">
      <div className="counter-cash-status"><span aria-hidden="true" className="counter-register-icon">▣</span><strong>Caixa em operação</strong></div>
