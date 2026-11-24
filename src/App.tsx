@@ -273,26 +273,36 @@ function App(){
   <section className="counter-workspace" role="dialog" aria-modal="true" aria-label={editing?'Editar venda de balcão':'Nova venda de balcão'}>
    <form className="counter-sale-form" onSubmit={e=>{e.preventDefault();void saveSale()}}
     onKeyDown={e=>{if(e.key==='Enter'&&!e.ctrlKey){const el=e.target as HTMLElement;if(el.tagName==='INPUT'&&el.id!=='counter-search'&&el.id!=='counter-qty')e.preventDefault()}}}>
+    
+    <div className="counter-windowbar">
+     <span aria-hidden="true">▣</span><b>GELADÃO</b><span>– PDV (Frente de Caixa)</span>
+     <button type="button" onClick={closeSale} title="Fechar (Esc)" aria-label="Fechar a tela do caixa">×</button>
+    </div>
     <header className="counter-topbar">
-     <div className="counter-brand"><span className="counter-brand-icon">G</span><div><b>GELADÃO</b><small>PDV BALCÃO · ATENDIMENTO RÁPIDO</small></div></div>
-     <div className="counter-top-meta">
-      <span className="counter-status-dot"><i/> Operação de balcão</span>
-      <span className="counter-operator">Operador: <b>{staff.display_name||user.email||'Equipe'}</b></span>
-      <span className="counter-date">{new Date().toLocaleDateString('pt-BR')}</span>
-      <button type="button" className="counter-close" onClick={closeSale} title="Fechar (Esc)">Fechar <span>Esc</span> ×</button>
-     </div>
+     <div className="counter-brand"><strong>GELADÃO</strong><i aria-hidden="true"/></div>
+     <div className="counter-attendant"><span aria-hidden="true">♙</span> Atendente: <b>{staff.display_name||user.email||'Operador'}</b></div>
+     <div className="counter-top-meta"><span>▦ {counterClock.toLocaleDateString('pt-BR')}</span><span>◷ {counterClock.toLocaleTimeString('pt-BR')}</span></div>
     </header>
     <div className="counter-product-banner">
-     <div className="counter-product-title"><small>PRODUTO SELECIONADO</small><h2>{counterPreview?.name||'PRONTO PARA A PRÓXIMA VENDA'}</h2><span>{counterPreview?('Código: '+(counterPreview.barcode||counterPreview.sku||'Sem código')):'Bipe o código de barras ou pesquise pelo nome'}</span></div>
-     <div className="counter-banner-value"><small>PREÇO UNITÁRIO</small><strong>{counterPreview?cash(Number(counterPreview.sale_price)):cash(0)}</strong></div>
+     <span aria-hidden="true" className="counter-product-tag">◇</span>
+     <h2>{counterPreview?.name||'PRONTO PARA NOVA VENDA'}</h2>
     </div>
     <div className="counter-main">
+     <aside className="counter-logo-panel" aria-label="PDV GELADÃO">
+      <svg viewBox="0 0 154 126" role="img" aria-label="Carrinho de compras">
+       <path d="M14 20h15l16 69h81l14-52H40" fill="none" stroke="#1759b9" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round"/>
+       <path d="M55 56h69M62 73h58" stroke="#2e92ee" strokeWidth="6" strokeLinecap="round"/>
+       <circle cx="62" cy="108" r="10" fill="#133c88"/><circle cx="116" cy="108" r="10" fill="#133c88"/>
+       <path d="M8 49h20M4 69h28" stroke="#27a2eb" strokeWidth="7" strokeLinecap="round"/>
+      </svg>
+      <strong>PDV</strong><b>GELADÃO</b><i aria-hidden="true"/>
+     </aside>
      <section className="counter-terminal">
-      <div className="counter-terminal-heading"><div className="counter-mark">▣</div><div><h3>Lançamento de produtos</h3><p>Leitura por código de barras ou busca rápida.</p></div></div>
-      <label className="counter-search-label" htmlFor="counter-search">Código de barras / descrição</label>
+      
+      <label className="counter-search-label" htmlFor="counter-search">Código</label>
       <div className="counter-search-wrap">
-       <span className="counter-search-icon">⌕</span>
-       <input id="counter-search" autoFocus ref={counterSearchRef} autoComplete="off" placeholder="Bipe ou digite o produto e pressione Enter"
+       
+       <input id="counter-search" autoFocus ref={counterSearchRef} autoComplete="off" placeholder="Código ou nome do produto"
         value={productSearch}
         onChange={e=>{setProductSearch(e.target.value);setCounterChoiceIndex(-1);setCounterError('')}}
         onKeyDown={e=>{
@@ -300,7 +310,7 @@ function App(){
          if(e.key==='ArrowUp'&&counterMatches.length){e.preventDefault();setCounterChoiceIndex(i=>Math.max(0,i-1));return}
          if(e.key==='Enter'){e.preventDefault();e.stopPropagation();if(counterSelected)addCounterProduct(counterSelected);else setCounterError('Produto não encontrado. Confira o código ou a descrição.')}
         }}/>
-       <kbd>F3</kbd>
+       <span aria-hidden="true" className="counter-barcode-icon">▥</span>
       </div>
       {productSearch&&<div className="counter-suggestions" role="listbox" aria-label="Produtos encontrados">
        {counterMatches.map((p,i)=><button type="button" key={p.id} className={p.id===counterSelected?.id?'selected':''}
@@ -332,13 +342,13 @@ function App(){
       <p className="counter-help">O código de barras adiciona o produto automaticamente ao pressionar Enter. Ao repetir a leitura, a quantidade é somada.</p>
      </section>
      <section className="counter-ticket">
-      <div className="counter-ticket-head"><div><h3>Itens da venda</h3><p>{cart.length} produto{cart.length!==1?'s':''} · {cart.reduce((sum,line)=>sum+line.quantity,0)} unidade(s)</p></div><span className="counter-ticket-badge">{editing?'EDITANDO #'+editing.order_number:'VENDA ATUAL'}</span></div>
       <div className="counter-ticket-scroll">
        <table className="counter-ticket-table">
-        <thead><tr><th>#</th><th>Descrição / código</th><th>Quantidade</th><th>Unitário</th><th>Total</th><th aria-label="Remover item"/></tr></thead>
+        <thead><tr><th>Item</th><th>Código</th><th>Descrição</th><th>Qtd</th><th>Preço</th><th>Total</th><th aria-label="Remover item"/></tr></thead>
         <tbody>{cart.map((line,i)=><tr key={line.product.id}>
-         <td className="counter-row-number">{String(i+1).padStart(2,'0')}</td>
-         <td className="counter-item-name"><b>{line.product.name}</b><small>{line.product.barcode||line.product.sku||line.product.unit}</small></td>
+         <td className="counter-row-number">{i+1}</td>
+         <td className="counter-item-code">{line.product.barcode||line.product.sku||'—'}</td>
+         <td className="counter-item-name" title={line.product.name}>{line.product.name}</td>
          <td><div className="counter-item-qty"><button type="button" aria-label={'Diminuir '+line.product.name} onClick={()=>changeQty(line.product.id,line.quantity-1)}>−</button>
           <input type="number" min="1" step="1" aria-label={'Quantidade de '+line.product.name} value={line.quantity} onChange={e=>changeQty(line.product.id,Number(e.target.value))}/>
           <button type="button" aria-label={'Aumentar '+line.product.name} onClick={()=>changeQty(line.product.id,line.quantity+1)}>+</button></div></td>
@@ -350,7 +360,7 @@ function App(){
        </table>
        {!cart.length&&<div className="counter-empty"><span>▤</span><h3>Nenhum item lançado</h3><p>Pesquise um produto ou use o leitor de código de barras para começar.</p></div>}
       </div>
-      <div className="counter-ticket-summary"><span>Subtotal dos produtos</span><strong>{cash(subtotal)}</strong><small>{cart.reduce((sum,line)=>sum+line.quantity,0)} unidade(s) na venda</small></div>
+      
      </section>
     </div>
     <footer className="counter-footer">
