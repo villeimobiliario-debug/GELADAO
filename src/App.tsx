@@ -363,28 +363,34 @@ function App(){
       
      </section>
     </div>
-    <footer className="counter-footer">
-     <div className="counter-footer-main">
-      <div className="counter-actions">
-       <button type="button" onClick={startFreshCounter}><kbd>F2</kbd> Nova venda</button>
-       <button type="button" onClick={()=>counterSearchRef.current?.focus()}><kbd>F3</kbd> Localizar produto</button>
-       <button type="button" onClick={()=>{if(counterCustomerDetailsRef.current)counterCustomerDetailsRef.current.open=true;counterCustomerRef.current?.focus()}}>Buscar cliente</button>
-       <button type="button" onClick={()=>document.getElementById('counter-discount')?.focus()}><kbd>F6</kbd> Desconto</button>
-       <button type="button" onClick={()=>{if(counterLastOrder)print(counterLastOrder)}} disabled={!counterLastOrder}>Reimprimir última</button>
-       <button type="button" className="counter-cancel" onClick={closeSale}>Cancelar / Esc</button>
-      </div>
-      <div className="counter-payment-bar">
-       <label>Desconto (R$)<input id="counter-discount" type="number" min="0" step=".01" value={form.discount} onChange={e=>updateForm('discount',e.target.value)}/></label>
-       <label>Forma de pagamento<select id="counter-payment" value={form.payment_method} onChange={e=>{updateForm('payment_method',e.target.value);setCounterError('')}}>{Object.keys(paymentLabels).map(k=><option key={k} value={k}>{paymentLabels[k]}</option>)}</select></label>
-       {form.payment_method==='dinheiro'&&<label>Valor recebido (R$)<input type="number" inputMode="decimal" min="0" step=".01" placeholder="Opcional" value={counterTendered} onChange={e=>setCounterTendered(e.target.value)}/></label>}
-       <label className="counter-paid"><input type="checkbox" checked={form.paid} onChange={e=>updateForm('paid',e.target.checked)}/> Pagamento recebido</label>
-       {form.payment_method==='dinheiro'&&counterTendered.trim()&&Number.isFinite(number(counterTendered))&&<div className="counter-change"><small>{number(counterTendered)>=total?'Troco':'Falta receber'}</small><strong>{cash(Math.abs(number(counterTendered)-total))}</strong></div>}
-      </div>
+    
+    {counterPaymentOpen&&<div className="counter-payment-drawer" role="region" aria-label="Pagamento e desconto">
+     <div className="counter-payment-title"><b>Pagamento e desconto</b><button type="button" onClick={()=>{setCounterPaymentOpen(false);counterSearchRef.current?.focus()}}>Fechar ×</button></div>
+     <div className="counter-payment-bar">
+      <label>Desconto (R$)<input id="counter-discount" type="number" min="0" step=".01" value={form.discount} onChange={e=>updateForm('discount',e.target.value)}/></label>
+      <label>Forma de pagamento<select id="counter-payment" value={form.payment_method} onChange={e=>{updateForm('payment_method',e.target.value);setCounterError('')}}>{Object.keys(paymentLabels).map(k=><option key={k} value={k}>{paymentLabels[k]}</option>)}</select></label>
+      {form.payment_method==='dinheiro'&&<label>Valor recebido (R$)<input type="number" inputMode="decimal" min="0" step=".01" placeholder="Opcional" value={counterTendered} onChange={e=>setCounterTendered(e.target.value)}/></label>}
+      <label className="counter-paid"><input type="checkbox" checked={form.paid} onChange={e=>updateForm('paid',e.target.checked)}/> Pagamento recebido</label>
+      {form.payment_method==='dinheiro'&&counterTendered.trim()&&Number.isFinite(number(counterTendered))&&<div className="counter-change"><small>{number(counterTendered)>=total?'Troco':'Falta receber'}</small><strong>{cash(Math.abs(number(counterTendered)-total))}</strong></div>}
      </div>
-     <div className="counter-total-panel">
-      <div><span>TOTAL DA VENDA</span><strong>{cash(total)}</strong></div>
-      <button type="submit" disabled={busy||!cart.length}>{busy?'Salvando...':editing?'Salvar alterações':'Finalizar venda'} <span>Ctrl + Enter</span></button>
+     <button type="submit" className="counter-pay-confirm" disabled={busy||!cart.length}>{busy?'Salvando...':'Finalizar venda · Ctrl + Enter'}</button>
+    </div>}
+    <div className="counter-bottom-summary">
+     <div className="counter-cash-status"><span aria-hidden="true" className="counter-register-icon">▣</span><strong>Caixa em operação</strong></div>
+     <div className="counter-total-panel"><span>Total da venda</span><strong>{cash(total)}</strong>
+      <button type="submit" disabled={busy||!cart.length}>{busy?'Salvando...':editing?'Salvar alterações':'Finalizar venda'} <small>Ctrl + Enter</small></button>
      </div>
+    </div>
+    <footer className="counter-shortcuts">
+     <button type="button" onClick={()=>{if(counterCustomerDetailsRef.current)counterCustomerDetailsRef.current.open=true;counterCustomerRef.current?.focus()}}><kbd>F1</kbd> Cliente</button>
+     <button type="button" onClick={startFreshCounter}><kbd>F2</kbd> Nova venda</button>
+     <button type="button" onClick={()=>counterSearchRef.current?.focus()}><kbd>F3</kbd> Consultar produto</button>
+     <button type="button" onClick={()=>counterSearchRef.current?.focus()}><kbd>F4</kbd> Código</button>
+     <button type="button" disabled={!cart.length} onClick={()=>{const last=cart[cart.length-1];if(last&&window.confirm('Remover '+last.product.name+' da venda?'))changeQty(last.product.id,0)}}><kbd>F5</kbd> Remover item</button>
+     <button type="button" onClick={()=>{setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-discount')?.focus())}}><kbd>F6</kbd> Desconto</button>
+     <button type="button" disabled={!counterLastOrder} onClick={()=>{if(counterLastOrder)print(counterLastOrder)}}><kbd>F7</kbd> Reimprimir</button>
+     <button type="button" onClick={()=>{setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-payment')?.focus())}}><kbd>F8</kbd> Pagamento</button>
+     <button type="button" onClick={closeSale}><kbd>Esc</kbd> Sair</button>
     </footer>
    </form>
   </section>
