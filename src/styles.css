@@ -2224,3 +2224,187 @@ thead th{background:#fbfcfe}
  .counter-pay-pick button{font-size:12px;gap:5px}
  .counter-pay-remaining strong{font-size:23px}
 }
+
+/* GELADAO - CONTA FIADOS / CUSTOMER CREDIT LEDGER */
+.counter-pay-account-option{
+ grid-column:1/-1;
+ min-height:94px!important;
+ display:grid!important;
+ grid-template-columns:53px 1fr auto;
+ align-items:center!important;
+ gap:8px 15px!important;
+ background:#f0f6ff!important;
+ border-color:#9ec6fb!important;
+}
+.counter-pay-account-option>kbd{grid-column:1;grid-row:1/3;position:static!important}
+.counter-pay-account-option>span{grid-column:2;grid-row:1;font-size:23px!important}
+.counter-pay-account-option>strong{grid-column:2;grid-row:2;font-size:21px!important}
+.counter-pay-account-option>small{
+ grid-column:3;grid-row:1/3;color:#4b6f99;font-size:12px;max-width:210px;
+}
+.counter-pay-account{align-items:stretch}
+.counter-pay-account>h3{text-align:center}
+.counter-pay-account>.counter-pay-hint{text-align:center}
+.counter-pay-account>.counter-pay-finish,.counter-pay-account>.counter-pay-back{align-self:center}
+.counter-credit-picker{width:100%;min-width:0;display:grid;gap:9px}
+.counter-credit-picker>label{font-size:13px;font-weight:760;color:#294d75}
+.counter-credit-picker>input{
+ border:2px solid #a9c9f4;border-radius:11px;
+ min-height:56px;padding:11px 14px;
+ font-size:19px;font-weight:700;color:#163e77;background:#fff;
+}
+.counter-credit-picker>input:focus{
+ border-color:#196adb;outline:none;box-shadow:0 0 0 4px #cce2ff;
+}
+.counter-credit-matches{
+ display:grid;gap:2px;
+ max-height:248px;overflow:auto;border:1px solid #d5e4f5;
+ border-radius:10px;background:#fff;
+}
+.counter-credit-matches button{
+ display:flex;justify-content:space-between;align-items:center;gap:12px;
+ padding:12px 15px;text-align:left;background:#fff;color:#173b68;border:0;
+ border-bottom:1px solid #eff3fa;
+}
+.counter-credit-matches button:hover,.counter-credit-matches button.selected{
+ background:#e8f2ff;
+}
+.counter-credit-matches button>span:first-child{display:grid;gap:3px}
+.counter-credit-matches button strong{font-size:15px;font-weight:790}
+.counter-credit-matches button small{font-size:12px;color:#728ba7}
+.counter-credit-matches button>span:last-child{white-space:nowrap;font-size:12px;color:#607b98}
+.counter-credit-matches p{margin:0;padding:13px;color:#6e829a;font-size:13px}
+.counter-credit-selected{
+ display:flex;justify-content:space-between;align-items:center;gap:13px;
+ background:#ecf7ff;border:1px solid #b2d4f6;padding:16px;
+ border-radius:12px;
+}
+.counter-credit-selected>div{display:grid;gap:5px}
+.counter-credit-selected small{letter-spacing:.8px;font-size:10px;font-weight:780;color:#4b729c}
+.counter-credit-selected strong{font-size:18px;color:#123b76}
+.counter-credit-selected span{font-size:13px;color:#496f9c;font-weight:700}
+.counter-credit-selected button{
+ background:white;border:1px solid #bbd5ee;border-radius:9px;
+ padding:9px 12px;color:#225f9e;font-size:12px;font-weight:760;
+}
+.counter-credit-preview{
+ display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 12px;
+ background:#f4f8ff;border:1px solid #d0e2fa;
+ border-radius:12px;padding:15px 20px;
+}
+.counter-credit-preview span{font-size:13px;font-weight:730;color:#567493}
+.counter-credit-preview strong{font-size:28px;font-weight:860;color:#123c83;white-space:nowrap}
+.counter-credit-preview small{grid-column:1/-1;font-size:11px;color:#7c8ea8}
+.counter-pay-pick>div:has(button:nth-child(4)){grid-template-columns:repeat(4,1fr)}
+.counter-pay-split .counter-credit-picker{
+ border:1px solid #d5e3f3;background:#f5f9ff;
+ padding:12px;border-radius:9px;
+}
+.credit-page{display:grid;gap:18px;min-width:0}
+.credit-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.credit-heading h2{font-size:23px;margin:0 0 6px;color:#142f55}
+.credit-heading p{font-size:13px;margin:0;color:#7487a0}
+.credit-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.credit-metric{display:grid;gap:9px;min-width:0;padding:21px!important}
+.credit-metric span{font-size:13px;font-weight:730;color:#607b9b}
+.credit-metric strong{font-size:clamp(24px,2.5vw,34px);font-weight:850;color:#123967}
+.credit-metric small{font-size:11px;color:#8598ac}
+.credit-layout{display:grid;grid-template-columns:minmax(250px,.7fr) minmax(0,1.7fr);gap:16px;align-items:start}
+.credit-directory{padding:17px!important;min-width:0}
+.credit-section-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.credit-section-title h3{margin:0;font-size:18px;color:#193958}
+.credit-section-title span{color:#567ca6;background:#ebf3ff;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:790}
+.credit-directory>input{width:100%;min-height:44px;border-radius:9px;padding:10px 12px}
+.credit-customer-list{display:grid;gap:5px;max-height:67vh;overflow:auto;margin-top:11px}
+.credit-customer-list button{
+ display:flex;justify-content:space-between;align-items:center;gap:10px;
+ border:1px solid transparent;border-radius:9px;
+ background:#fff;padding:12px 11px;text-align:left;
+ color:#223c5b;
+}
+.credit-customer-list button:hover,.credit-customer-list button.selected{
+ background:#eaf3ff;border-color:#b9d7fa;
+}
+.credit-customer-list button span{min-width:0;display:grid;gap:4px}
+.credit-customer-list button span strong{font-size:13px;overflow-wrap:anywhere;color:#203d65}
+.credit-customer-list button small{font-size:11px;color:#8295ae}
+.credit-customer-list button>b{font-size:14px;white-space:nowrap}
+.credit-owing{color:#ba5531!important}
+.credit-clear{color:#237d5c!important}
+.credit-empty{padding:24px 10px;text-align:center;color:#7690aa}
+.credit-empty p{margin:8px 0 0;font-size:12px;line-height:1.5}
+.credit-details{min-width:0;overflow:hidden;padding:0!important}
+.credit-detail-inner{display:grid;gap:22px;padding:23px}
+.credit-detail-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.credit-detail-heading>div{display:grid;gap:5px}
+.credit-detail-heading small{color:#6383a9;font-size:10px;font-weight:770;letter-spacing:1px}
+.credit-detail-heading h3{margin:0;color:#17375d;font-size:26px;font-weight:850}
+.credit-detail-heading span{font-size:13px;color:#748ba5}
+.credit-status-due,.credit-status-clear{padding:7px 12px;border-radius:999px;font-size:12px;font-weight:810;white-space:nowrap}
+.credit-status-due{background:#fff0e9;color:#a35429;border:1px solid #ffd4be}
+.credit-status-clear{background:#e9f9f2;color:#237953;border:1px solid #c3ecd7}
+.credit-client-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.credit-client-metrics>div{display:grid;gap:7px;padding:15px;border:1px solid #dce6f3;background:#f5f8ff;border-radius:11px;min-width:0}
+.credit-client-metrics span{font-size:12px;color:#7089a5;font-weight:680}
+.credit-client-metrics strong{font-size:clamp(17px,2vw,24px);color:#174176;white-space:nowrap}
+.credit-receive{display:grid;gap:13px;background:#eef6ff;padding:19px;border:1px solid #c8dffb;border-radius:13px}
+.credit-receive h4,.credit-history-section h4{margin:0;color:#183a66;font-size:18px;font-weight:810}
+.credit-receive-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end}
+.credit-receive-fields label{font-size:12px;font-weight:750;color:#466789}
+.credit-receive-fields input,.credit-receive-fields select{
+ width:100%;min-height:43px;margin-top:5px;border-radius:9px;
+ padding:9px 12px;font-size:14px;color:#183b6b;background:white;
+}
+.credit-receive-fields button{min-height:43px;font-size:13px;border-radius:9px;font-weight:780}
+.credit-receive>p{font-size:11px;margin:0;color:#607e9d}
+.credit-receive>p.credit-error{color:#b3424f;background:#fff0f0;padding:11px;border-radius:7px;font-weight:740}
+.credit-history-section{display:grid;gap:12px;min-width:0}
+.credit-history-section h4{display:flex;align-items:center;gap:9px;font-size:17px}
+.credit-history-section h4>span{font-size:12px;color:#56769b;border-radius:999px;padding:3px 8px;background:#eaf2fe}
+.credit-table-scroll{max-width:100%;overflow:auto}
+.credit-table-scroll table,.credit-sale-items table{width:100%;border-collapse:collapse;min-width:570px}
+.credit-table-scroll th,.credit-sale-items th{
+ color:#5c7898;background:#f3f7fd;font-size:11px;font-weight:790;
+ text-align:left;padding:12px;border-bottom:1px solid #dce7f5;white-space:nowrap;
+}
+.credit-table-scroll td,.credit-sale-items td{
+ border-bottom:1px solid #e7eef7;padding:12px;font-size:12px;
+ vertical-align:middle;color:#284568;
+}
+.credit-table-scroll td strong{font-size:14px}
+.credit-table-scroll td .outline{font-size:11px;padding:6px 9px}
+.credit-note{display:block;color:#758eaa;font-size:10px;margin-top:4px}
+.credit-allocation{display:block;font-size:11px;font-weight:690;color:#4a6b93;white-space:nowrap;margin:3px 0}
+.credit-no-history{font-size:13px;color:#738ba4;margin:0}
+.credit-sale-items{padding:15px;background:#f9fbff;border:1px solid #d9e5f4;border-radius:11px;overflow:auto}
+.credit-item-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.credit-item-header h4{margin:0;font-size:15px}
+.credit-item-header button{font-size:11px}
+.credit-instructions{min-height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:13px;padding:35px}
+.credit-instructions>span{display:grid;place-items:center;width:80px;height:80px;border-radius:20px;background:#edf4ff;color:#3873be;font-size:50px}
+.credit-instructions h3{margin:0;font-size:20px;color:#315a85}
+.credit-instructions p{max-width:320px;line-height:1.6;font-size:13px;color:#7b90ac;margin:0}
+@media(max-width:1150px){
+ .credit-layout{grid-template-columns:minmax(230px,.75fr) minmax(0,1.35fr)}
+ .credit-detail-inner{padding:16px}
+ .credit-metric{padding:17px!important}
+}
+@media(max-width:850px){
+ .credit-layout{grid-template-columns:1fr}
+ .credit-customer-list{max-height:340px}
+ .credit-metrics{gap:9px}
+ .credit-client-metrics{gap:8px}
+}
+@media(max-width:620px){
+ .counter-pay-account-option{grid-template-columns:39px 1fr}
+ .counter-pay-account-option>small{grid-column:2;grid-row:3;max-width:unset}
+ .counter-pay-pick>div:has(button:nth-child(4)){grid-template-columns:repeat(2,1fr)}
+ .counter-credit-selected{flex-direction:column;align-items:flex-start}
+ .counter-credit-selected button{align-self:flex-end}
+ .credit-metrics{grid-template-columns:1fr}
+ .credit-metric{padding:15px!important}
+ .credit-detail-heading h3{font-size:22px}
+ .credit-client-metrics strong{font-size:16px}
+ .credit-client-metrics>div{padding:10px}
+ .credit-receive-fields{grid-template-columns:1fr}
+}
