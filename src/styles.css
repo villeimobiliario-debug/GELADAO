@@ -1337,3 +1337,532 @@ thead th{background:#fbfcfe}
   .counter-total-panel>div strong{font-size:29px}
   .counter-payment-bar>label{flex:1 1 120px}
 }
+
+/* GELADAO CLASSIC CASHIER REFERENCE LAYOUT - 2026-11-23 */
+.counter-overlay{background:#eef3fb;color:#122646}
+.counter-workspace{background:#f6f9ff}
+.counter-sale-form{
+  position:relative;
+  grid-template-rows:35px 79px 106px minmax(0,1fr) 119px 48px;
+  background:linear-gradient(130deg,#f9fbff 0%,#edf4fe 100%);
+}
+.counter-windowbar{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+  padding:0 20px;
+  color:#fff;
+  background:#10234b;
+  font-size:13px;
+  font-weight:570;
+  letter-spacing:.1px;
+}
+.counter-windowbar>b{font-size:15px;letter-spacing:.3px}
+.counter-windowbar>span:first-child{font-size:21px;color:#d7e7ff}
+.counter-windowbar button{
+  margin-left:auto;
+  color:#fff;
+  border:0;
+  background:transparent;
+  font-size:23px;
+  padding:2px 10px;
+  border-radius:6px;
+  line-height:1.1;
+}
+.counter-windowbar button:hover{background:#ffffff23}
+.counter-topbar{
+  padding:8px clamp(16px,2vw,32px);
+  background:#fff;
+  box-shadow:none;
+  border-bottom:1px solid #d9e4f3;
+  gap:22px;
+  justify-content:flex-start;
+}
+.counter-brand{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  position:relative;
+  padding-right:26px;
+  border-right:1px solid #cad7e8;
+}
+.counter-brand strong{
+  position:relative;
+  z-index:1;
+  font-size:clamp(25px,2.3vw,34px);
+  line-height:1.03;
+  color:#0b2a67;
+  font-weight:950;
+  font-style:italic;
+  letter-spacing:-1.2px;
+}
+.counter-brand i{
+  position:absolute;
+  bottom:-5px;
+  left:18px;
+  width:123px;
+  height:6px;
+  border-radius:40%;
+  transform:skewX(-28deg);
+  background:linear-gradient(90deg,#22b7fd,#0567d2);
+}
+.counter-attendant{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#21345a;
+  font-weight:650;
+  font-size:14px;
+}
+.counter-attendant span{
+  color:#31598e;
+  font-size:23px;
+}
+.counter-attendant b{color:#0e234f;font-weight:850}
+.counter-top-meta{
+  margin-left:auto;
+  display:flex;
+  gap:18px;
+  font-size:13px;
+  font-weight:690;
+  color:#152b52;
+}
+.counter-top-meta>span+span{
+  padding-left:17px;
+  border-left:1px solid #cdd9e8;
+}
+.counter-product-banner{
+  margin:15px clamp(13px,1.6vw,24px) 11px;
+  min-height:0;
+  padding:10px 27px;
+  display:flex;
+  justify-content:flex-start;
+  align-items:center;
+  gap:22px;
+  background:linear-gradient(108deg,#104ba9 0%,#115ace 64%,#154bb3 100%);
+  border:1px solid #1762d9;
+  border-radius:12px;
+  box-shadow:0 3px 0 #d3e1f6,0 6px 15px #1b5cc622;
+}
+.counter-product-tag{
+  flex:none;
+  display:grid;
+  place-items:center;
+  width:59px;
+  height:61px;
+  color:white;
+  font-size:49px;
+  line-height:1;
+  font-weight:700;
+  border-right:1px solid #ffffff80;
+  padding-right:13px;
+}
+.counter-product-banner h2{
+  color:#fff;
+  font-size:clamp(20px,2.15vw,34px);
+  letter-spacing:.25px;
+  font-weight:850;
+  margin:0;
+  overflow-wrap:anywhere;
+  text-transform:uppercase;
+}
+.counter-main{
+  grid-template-columns:minmax(164px,.86fr) minmax(225px,.78fr) minmax(0,2.05fr);
+  gap:12px;
+  min-height:0;
+  padding:12px clamp(12px,1.6vw,24px);
+}
+.counter-logo-panel,.counter-terminal,.counter-ticket{
+  border:1px solid #d5e1ef;
+  border-radius:15px;
+  background:linear-gradient(150deg,#fff,#f8faff);
+  box-shadow:0 7px 18px #0e325118;
+  min-width:0;
+  min-height:0;
+}
+.counter-logo-panel{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  overflow:hidden;
+  gap:5px;
+  padding:18px 12px;
+}
+.counter-logo-panel svg{
+  width:min(75%,168px);
+  max-height:38%;
+  filter:drop-shadow(0 5px 7px #3b78b424);
+}
+.counter-logo-panel>strong{
+  font-size:clamp(48px,5vw,87px);
+  line-height:.99;
+  font-weight:950;
+  font-style:italic;
+  letter-spacing:-4px;
+  color:#082b71;
+  margin-top:9px;
+}
+.counter-logo-panel>b{
+  font-size:clamp(16px,2.1vw,30px);
+  letter-spacing:-.9px;
+  font-weight:900;
+  color:#073171;
+}
+.counter-logo-panel>i{
+  width:55%;
+  max-width:150px;
+  height:5px;
+  transform:skewX(-25deg);
+  background:#158ee7;
+  border-radius:50%;
+}
+.counter-terminal{
+  padding:17px 15px;
+  overflow:auto;
+  scrollbar-width:thin;
+  background:#fff;
+}
+.counter-search-label{
+  font-size:14px;
+  font-weight:800;
+  color:#1c2740;
+  margin:0 0 7px;
+}
+.counter-search-wrap input{
+  min-height:53px;
+  width:100%;
+  padding:11px 47px 11px 12px;
+  border-radius:9px;
+  background:#f8faff;
+  border:2px solid #83b5ee;
+  font-size:14px;
+  font-weight:600;
+  color:#14335b;
+}
+.counter-search-wrap input:focus{
+  border-color:#1266db;
+  box-shadow:0 0 0 3px #e2efff;
+}
+.counter-barcode-icon{
+  position:absolute;
+  right:9px;
+  top:10px;
+  height:33px;
+  width:32px;
+  display:grid;
+  place-items:center;
+  font-size:26px;
+  color:#1e518e;
+  border-radius:6px;
+  background:#ebf3ff;
+  border:1px solid #d1e1f4;
+  pointer-events:none;
+}
+.counter-entry-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:11px;
+  margin-top:19px;
+}
+.counter-entry-grid label{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:14px;
+  color:#1c2740;
+  font-weight:790;
+}
+.counter-entry-grid input{
+  text-align:right;
+  width:100%;
+  min-height:48px;
+  border:1px solid #cbd4e4;
+  border-radius:9px;
+  padding:8px 12px;
+  background:#f2f5fa;
+  font-size:22px;
+  line-height:1.2;
+  font-weight:790;
+  color:#1b2640;
+}
+.counter-entry-grid input:read-only{
+  background:#f2f5fa;
+  border-color:#d0d9e6;
+  color:#233757;
+}
+.counter-add{
+  min-height:38px;
+  border:1px solid #cdddf2;
+  border-radius:8px;
+  background:#eaf2ff;
+  box-shadow:none;
+  color:#17488f;
+  font-size:12px;
+  padding:8px 9px;
+  margin:12px 0 0;
+}
+.counter-add:hover:not(:disabled){background:#dcecff}
+.counter-add kbd{border-color:#7c9dca}
+.counter-more{
+  margin-top:18px;
+  padding-top:12px;
+  border-top:1px solid #e7edf6;
+}
+.counter-more summary{font-size:11px;color:#536a8a;font-weight:670}
+.counter-more summary span{font-size:10px}
+.counter-terminal .counter-error{padding:9px 10px;font-size:11px}
+.counter-ticket{
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:#fff;
+  padding:8px 9px;
+}
+.counter-ticket-scroll{
+  flex:1;
+  min-height:0;
+  overflow:auto;
+  padding:0;
+}
+.counter-ticket-table{
+  width:100%;
+  min-width:625px;
+  table-layout:auto;
+}
+.counter-ticket-table th{
+  padding:10px 7px;
+  position:sticky;
+  top:0;
+  background:#e7eef9;
+  color:#1b2e4a;
+  border-bottom:1px solid #d2dfed;
+  font-size:11px;
+  font-weight:790;
+  letter-spacing:0;
+  text-transform:none;
+}
+.counter-ticket-table td{
+  padding:10px 7px;
+  border-bottom:1px solid #e0e7f1;
+  font-size:12px;
+  line-height:1.35;
+  vertical-align:middle;
+  color:#22334e;
+}
+.counter-ticket-table th:first-child,.counter-ticket-table td:first-child{width:40px;text-align:center}
+.counter-item-code{font-size:10.5px!important;color:#5a7190!important;white-space:nowrap}
+.counter-item-name{font-size:12px!important;font-weight:700;color:#1c3558!important;max-width:250px;overflow-wrap:anywhere}
+.counter-item-total{font-size:12px;color:#102c55!important}
+.counter-item-qty{gap:2px}
+.counter-item-qty button{
+  min-width:22px;
+  height:27px;
+  border-radius:5px;
+  font-size:13px;
+  background:#f0f5fd;
+}
+.counter-item-qty input{width:45px;padding:6px 0!important;border-radius:5px;font-size:11px}
+.counter-admin-price{width:69px!important}
+.counter-remove{height:26px;width:26px}
+.counter-empty{min-height:270px}
+.counter-bottom-summary{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:15px;
+  min-width:0;
+  padding:7px clamp(12px,1.6vw,24px) 11px;
+  border-top:0;
+}
+.counter-cash-status,.counter-total-panel{
+  min-width:0;
+  min-height:89px;
+  display:flex;
+  align-items:center;
+  gap:22px;
+  border-radius:13px;
+  color:#fff;
+  padding:10px 24px;
+  box-shadow:0 5px 11px #15479c21;
+}
+.counter-cash-status{background:linear-gradient(115deg,#0d2255,#102f75)}
+.counter-register-icon{
+  display:grid;
+  place-items:center;
+  width:70px;
+  font-size:48px;
+  line-height:1;
+  color:#fff;
+  border-right:1px solid #e1ecff80;
+  padding-right:18px;
+}
+.counter-cash-status strong{
+  font-size:clamp(20px,2.25vw,34px);
+  line-height:1.12;
+  white-space:nowrap;
+  font-weight:850;
+  letter-spacing:-.4px;
+}
+.counter-total-panel{
+  position:relative;
+  flex-direction:row;
+  justify-content:space-between;
+  background:linear-gradient(110deg,#1062d9,#063fae);
+  border:1px solid #1268e2;
+  box-shadow:0 5px 11px #1557c13b;
+}
+.counter-total-panel>span{
+  flex:none;
+  color:#fff;
+  font-size:clamp(15px,1.6vw,23px);
+  font-weight:760;
+  border-right:1px solid #ffffff80;
+  padding-right:17px;
+}
+.counter-total-panel>strong{
+  margin-left:auto;
+  color:#fff;
+  font-weight:880;
+  font-size:clamp(24px,2.9vw,42px);
+  letter-spacing:-1px;
+  white-space:nowrap;
+}
+.counter-total-panel>button{
+  position:absolute;
+  right:14px;
+  bottom:5px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  width:auto;
+  min-height:auto;
+  padding:2px 7px;
+  font-size:10px;
+  font-weight:720;
+  border-radius:5px;
+  color:#e9f4ff;
+  background:#124fba;
+  border:1px solid #ffffff55;
+  box-shadow:none;
+}
+.counter-total-panel>button:hover:not(:disabled){background:#0d3e91}
+.counter-total-panel>button small{font-size:9px;color:inherit}
+.counter-shortcuts{
+  display:flex;
+  align-items:center;
+  justify-content:space-evenly;
+  gap:0;
+  margin:0;
+  overflow-x:auto;
+  padding:5px 10px;
+  border-top:1px solid #d8e3f2;
+  color:#263b59;
+  background:#f9fbff;
+}
+.counter-shortcuts button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  flex:none;
+  padding:5px 11px;
+  border:0;
+  border-right:1px solid #ced9e9;
+  color:#1f3552;
+  font-size:11px;
+  font-weight:620;
+  background:transparent;
+  white-space:nowrap;
+  border-radius:0;
+}
+.counter-shortcuts button:last-child{border-right:0}
+.counter-shortcuts button:hover:not(:disabled){background:#e5efff}
+.counter-shortcuts kbd{
+  padding:3px 6px;
+  font-size:10px;
+  font-weight:820;
+  border:1px solid #839fc6;
+  border-radius:5px;
+  color:#184b92;
+  background:#fff;
+  opacity:1;
+}
+.counter-payment-drawer{
+  position:absolute;
+  z-index:15;
+  bottom:174px;
+  right:clamp(12px,1.6vw,24px);
+  width:min(505px,calc(100% - 24px));
+  padding:19px;
+  border:1px solid #c8d9f0;
+  border-radius:14px;
+  box-shadow:0 18px 45px rgba(15,36,75,.26);
+  background:#fff;
+}
+.counter-payment-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:15px;
+}
+.counter-payment-title>b{font-size:16px;color:#1b395e}
+.counter-payment-title button{
+  background:#eef4fc;
+  border:1px solid #d6e2f1;
+  border-radius:7px;
+  padding:6px 9px;
+  font-size:11px;
+}
+.counter-payment-drawer .counter-payment-bar{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.counter-payment-drawer .counter-payment-bar label{min-width:0;font-size:11px}
+.counter-payment-drawer .counter-payment-bar label.counter-paid{grid-column:1/-1;justify-content:flex-start}
+.counter-pay-confirm{
+  width:100%;
+  margin-top:14px;
+  padding:12px;
+  border:0;
+  border-radius:9px;
+  background:#155cce;
+  color:#fff;
+  font-weight:780;
+}
+.counter-pay-confirm:hover:not(:disabled){background:#104dac}
+@media(max-width:1180px){
+  .counter-sale-form{grid-template-rows:35px 73px 95px minmax(0,1fr) 110px 48px}
+  .counter-main{grid-template-columns:minmax(115px,.64fr) minmax(205px,.9fr) minmax(0,2.2fr);gap:9px;padding:8px 11px}
+  .counter-logo-panel>strong{font-size:52px}
+  .counter-logo-panel>b{font-size:18px}
+  .counter-terminal{padding:13px 10px}
+  .counter-bottom-summary{gap:8px;padding:6px 10px}
+  .counter-cash-status,.counter-total-panel{padding:12px 15px;gap:10px}
+  .counter-register-icon{font-size:32px;width:51px;padding-right:9px}
+  .counter-shortcuts{justify-content:flex-start}
+  .counter-shortcuts button{padding:5px 9px}
+}
+@media(max-width:900px){
+  .counter-sale-form{grid-template-rows:auto auto auto minmax(0,1fr) auto auto}
+  .counter-main{grid-template-columns:minmax(220px,.87fr) minmax(0,1.6fr)}
+  .counter-logo-panel{display:none}
+  .counter-ticket-table{min-width:575px}
+  .counter-attendant{font-size:12px}
+  .counter-brand strong{font-size:24px}
+}
+@media(max-width:700px){
+  .counter-workspace{overflow:auto}
+  .counter-sale-form{height:auto;min-height:100dvh;grid-template-rows:auto auto auto auto auto auto}
+  .counter-topbar{padding:12px;flex-wrap:wrap}
+  .counter-top-meta{margin-left:0}
+  .counter-main{grid-template-columns:1fr;padding:8px}
+  .counter-terminal{overflow:visible}
+  .counter-entry-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .counter-entry-grid label{font-size:12px}
+  .counter-entry-grid input{font-size:15px}
+  .counter-ticket{min-height:270px;max-height:480px}
+  .counter-ticket-scroll{overflow:auto}
+  .counter-bottom-summary{grid-template-columns:1fr}
+  .counter-product-banner{margin:10px 8px;padding:10px 14px}
+  .counter-product-banner h2{font-size:19px}
+  .counter-shortcuts{padding:8px}
+  .counter-payment-drawer{position:fixed;bottom:15px;left:12px;right:12px;width:auto;max-height:calc(100dvh - 30px);overflow:auto}
+}
