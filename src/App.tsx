@@ -69,6 +69,23 @@ function App(){
  useEffect(()=>{if(staff?.active)void refresh()},[staff?.active,refresh]);
  useEffect(()=>{if(!staff?.active)return;
  const key=(e:KeyboardEvent)=>{
+  if(e.key==='F1'&&!newProduct&&!newCustomer){
+   e.preventDefault();
+   if(busy)return;
+   if(saleOpen&&saleChannel==='balcao'){
+    setCounterPaymentOpen(false);
+    counterSearchRef.current?.focus();
+    return;
+   }
+   if(saleOpen){
+    const hasUnsavedChanges=Boolean(editing||cart.length||Object.keys(initialForm).some(key=>form[key as keyof Form]!==initialForm[key as keyof Form]));
+    if(hasUnsavedChanges&&!window.confirm('Descartar alterações desta venda e abrir o PDV Balcão?'))return;
+   }
+   setPage('balcao');
+   openSale('balcao');
+   window.requestAnimationFrame(()=>counterSearchRef.current?.focus());
+   return;
+  }
   if(e.key==='F2'&&!newProduct&&!newCustomer){
    e.preventDefault();
    if(saleOpen&&saleChannel==='balcao')startFreshCounter();
@@ -78,7 +95,6 @@ function App(){
   if(!saleOpen)return;
   if(e.key==='Escape'){e.preventDefault();if(saleChannel==='balcao'&&counterPaymentOpen){setCounterPaymentOpen(false);counterSearchRef.current?.focus()}else closeSale();return}
   if(saleChannel==='balcao'){
-   if(e.key==='F1'){e.preventDefault();if(counterCustomerDetailsRef.current)counterCustomerDetailsRef.current.open=true;window.requestAnimationFrame(()=>counterCustomerRef.current?.focus());return}
    if(e.key==='F3'||e.key==='F4'){e.preventDefault();counterSearchRef.current?.focus();return}
    if(e.key==='F5'){e.preventDefault();const last=cart[cart.length-1];if(last&&window.confirm('Remover '+last.product.name+' da venda?'))changeQty(last.product.id,0);return}
    if(e.key==='F6'){e.preventDefault();setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-discount')?.focus());return}
@@ -382,7 +398,7 @@ function App(){
      </div>
     </div>
     <footer className="counter-shortcuts">
-     <button type="button" onClick={()=>{if(counterCustomerDetailsRef.current)counterCustomerDetailsRef.current.open=true;counterCustomerRef.current?.focus()}}><kbd>F1</kbd> Cliente</button>
+     <button type="button" onClick={()=>{setCounterPaymentOpen(false);counterSearchRef.current?.focus()}}><kbd>F1</kbd> Adicionar produto</button>
      <button type="button" onClick={startFreshCounter}><kbd>F2</kbd> Nova venda</button>
      <button type="button" onClick={()=>counterSearchRef.current?.focus()}><kbd>F3</kbd> Consultar produto</button>
      <button type="button" onClick={()=>counterSearchRef.current?.focus()}><kbd>F4</kbd> Código</button>
