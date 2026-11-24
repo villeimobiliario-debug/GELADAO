@@ -686,7 +686,7 @@ async function editSale(o:Order){if(creditBalances.some(x=>x.order_id===o.id)){s
      </div>
      <div className="credit-client-metrics">
       <div><span>Total fiado</span><strong>{cash(chosenCredit.amount)}</strong></div>
-      <div><span>Já pagou</span><strong>{cash(chosenCredit.paid)}</strong></div>
+      <div><span>Abatido do fiado</span><strong>{cash(chosenCredit.paid)}</strong></div>
       <div><span>Saldo atual</span><strong>{cash(chosenCredit.balance)}</strong></div>
      </div>
      {chosenCredit.balance>0&&<form className="credit-receive" onSubmit={e=>void receiveCredit(e)}>
@@ -707,10 +707,10 @@ async function editSale(o:Order){if(creditBalances.some(x=>x.order_id===o.id)){s
       {creditPaymentError&&<p role="alert" className="credit-error">{creditPaymentError}</p>}
      </form>}
      <div className="credit-history-section"><h4>Compras fiadas <span>{chosenCreditSales.length}</span></h4>
-      <div className="credit-table-scroll"><table><thead><tr><th>Venda</th><th>Data</th><th>Fiado</th><th>Já pago</th><th>Em aberto</th><th>Detalhes</th></tr></thead>
+      <div className="credit-table-scroll"><table><thead><tr><th>Venda</th><th>Data</th><th>Total da compra</th><th>Fiado</th><th>Abatido</th><th>Em aberto</th><th>Detalhes</th></tr></thead>
        <tbody>{chosenCreditSales.map(sale=><tr key={sale.id}>
         <td><b>#{sale.order_number}</b></td><td>{fmt(sale.sold_at)}</td>
-        <td>{cash(Number(sale.credit_amount))}</td><td>{cash(Number(sale.paid_amount))}</td>
+        <td>{cash(Number(sale.total))}</td><td>{cash(Number(sale.credit_amount))}</td><td>{cash(Number(sale.paid_amount))}</td>
         <td><b className={Number(sale.balance)>0?'credit-owing':'credit-clear'}>{cash(Number(sale.balance))}</b></td>
         <td><button type="button" className="outline" onClick={()=>void loadCreditItems(sale.order_id)}>
          {creditOrderId===sale.order_id?'Atualizar itens':'Ver itens'}</button></td>
