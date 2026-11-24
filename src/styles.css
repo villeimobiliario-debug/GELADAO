@@ -2024,3 +2024,203 @@ thead th{background:#fbfcfe}
   .counter-ticket .counter-summary-table td.counter-summary-total{font-size:19px}
   .counter-summary-remove{min-width:27px}
 }
+
+/* GELADAO - KEYBOARD CHECKOUT MODAL */
+.counter-pay-overlay{
+ position:fixed;inset:0;z-index:160;
+ display:flex;align-items:center;justify-content:center;
+ padding:20px;
+ background:rgba(9,25,51,.67);
+ backdrop-filter:blur(5px);
+}
+.counter-pay-dialog{
+ width:min(720px,100%);max-height:calc(100dvh - 40px);
+ display:flex;flex-direction:column;
+ overflow:auto;
+ background:#f9fbff;
+ border:1px solid #d0dff2;
+ border-radius:20px;
+ box-shadow:0 26px 85px rgba(0,14,44,.5);
+ color:#153052;
+ outline:none;
+ scrollbar-width:thin;
+}
+.counter-pay-header{
+ display:flex;align-items:center;justify-content:space-between;gap:14px;
+ background:linear-gradient(105deg,#11234a,#164589);
+ padding:19px 25px;color:#fff;
+}
+.counter-pay-header small{font-size:11px;font-weight:760;letter-spacing:1px;color:#bad4fb}
+.counter-pay-header h2{margin:5px 0 0;font-size:24px;font-weight:850;color:#fff}
+.counter-pay-header button{
+ display:grid;place-items:center;flex:none;
+ width:37px;height:37px;border:1px solid #ffffff5a;border-radius:9px;
+ color:white;background:#ffffff1e;font-size:25px;
+}
+.counter-pay-header button:hover:not(:disabled){background:#ffffff3b}
+.counter-pay-total{
+ padding:21px;
+ display:grid;gap:4px;place-items:center;
+ background:linear-gradient(120deg,#e9f2ff,#f5f9ff);
+ border-bottom:1px solid #dae5f5;
+}
+.counter-pay-total span{font-size:13px;letter-spacing:1.1px;font-weight:760;color:#4b6c97}
+.counter-pay-total strong{
+ color:#0b397f;font-weight:880;letter-spacing:-1px;
+ font-size:clamp(35px,4.8vw,54px);
+ font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.counter-pay-discount{
+ display:flex;justify-content:center;align-items:center;gap:12px;
+ padding:12px 20px;border-bottom:1px solid #e1eaf5;
+ background:#fff;
+}
+.counter-pay-discount label{font-size:12px;font-weight:720;color:#577092}
+.counter-pay-discount input{
+ width:135px;min-height:37px;
+ border-radius:8px;border:1px solid #cfdced;
+ padding:8px 11px;font-size:15px;font-weight:730;
+ text-align:right;color:#29466b;
+}
+.counter-pay-discount input:focus,.counter-pay-body input:focus{
+ outline:3px solid #b7d4ff;outline-offset:1px;border-color:#286dda;
+}
+.counter-pay-body{
+ display:flex;flex-direction:column;gap:15px;padding:22px 26px 26px;
+}
+.counter-pay-body h3{font-size:21px;color:#1a3458;font-weight:800;margin:0}
+.counter-pay-options{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.counter-pay-options button{
+ min-height:124px;
+ display:flex;flex-direction:column;justify-content:center;align-items:flex-start;
+ gap:10px;position:relative;
+ border:2px solid #cbdcf4;border-radius:14px;
+ background:#fff;padding:19px 22px;
+ color:#123b7e;box-shadow:0 5px 16px #19385c12;
+ text-align:left;
+}
+.counter-pay-options button:hover,.counter-pay-options button:focus-visible{
+ border-color:#2473e8;background:#eef6ff;
+ box-shadow:0 0 0 4px #dceaff;
+}
+.counter-pay-options button>span{font-size:31px;line-height:1;color:#286bc9}
+.counter-pay-options button strong{font-weight:790;font-size:20px;color:#173764}
+.counter-pay-options kbd{
+ position:absolute;right:16px;top:16px;
+ display:inline-grid;place-items:center;
+ width:35px;height:35px;
+ color:#1553b0;font-size:18px;font-weight:850;
+ border:1px solid #a6c4ed;border-radius:9px;background:#f1f7ff;
+ box-shadow:none;opacity:1;
+}
+.counter-pay-hint{font-size:12px;font-weight:530;color:#667e9b;line-height:1.6;margin:0}
+.counter-pay-ready,.counter-pay-cash{align-items:center;text-align:center;gap:14px}
+.counter-pay-ready>h3{font-size:27px;color:#174a97}
+.counter-pay-ready>p:not(.counter-pay-hint){margin:0;font-size:19px;color:#274764}
+.counter-pay-ready>p strong{color:#0c3c82;font-size:23px}
+.counter-pay-cash label,.counter-pay-entry label{
+ font-size:14px;font-weight:780;color:#29466a;
+}
+.counter-pay-cash>input,.counter-pay-entry input{
+ width:min(340px,100%);min-height:64px;
+ background:#fff;border:2px solid #bbd2f1;border-radius:12px;
+ text-align:center;font-size:29px;font-weight:800;color:#153b7a;
+ padding:10px 17px;
+}
+.counter-pay-change{
+ display:flex;justify-content:space-between;align-items:center;
+ width:min(340px,100%);padding:12px 17px;
+ border-radius:10px;background:#e7f7ef;border:1px solid #b9e6d0;
+}
+.counter-pay-change span{color:#276752;font-size:15px;font-weight:740}
+.counter-pay-change strong{color:#166142;font-size:24px;font-weight:860}
+.counter-pay-finish{
+ display:inline-flex;align-items:center;justify-content:center;
+ min-height:51px;width:min(360px,100%);
+ background:linear-gradient(110deg,#176add,#0e4fbe);
+ color:#fff;font-size:16px;font-weight:850;
+ border:0;border-radius:12px;padding:12px 17px;
+ box-shadow:0 9px 20px #1656b92c;
+}
+.counter-pay-finish:hover:not(:disabled){background:#104eb2}
+.counter-pay-back{
+ border:1px solid #d5e1f0;border-radius:9px;
+ background:#fff;padding:10px 17px;
+ color:#55708f;font-size:13px;font-weight:750;
+}
+.counter-pay-back:hover:not(:disabled){background:#eef5ff}
+.counter-pay-remaining{
+ display:flex;align-items:center;justify-content:space-between;
+ padding:15px 18px;gap:12px;
+ border-radius:12px;background:#e8f1ff;border:1px solid #c3dcfc;
+}
+.counter-pay-remaining span{font-size:14px;font-weight:790;color:#37618f}
+.counter-pay-remaining strong{font-size:29px;font-weight:850;color:#0d499f;white-space:nowrap}
+.counter-pay-lines{display:grid;gap:6px}
+.counter-pay-lines>div{
+ display:flex;align-items:center;gap:12px;padding:9px 14px;
+ background:#fff;border:1px solid #e0e8f3;border-radius:9px;
+}
+.counter-pay-lines span{font-size:14px;font-weight:710;flex:1}
+.counter-pay-lines strong{font-size:17px;font-weight:810;color:#20589e}
+.counter-pay-lines button{
+ border:0;background:#fff0f0;color:#b94f59;border-radius:6px;
+ width:27px;height:27px;font-size:21px;
+}
+.counter-pay-pick{display:grid;gap:10px}
+.counter-pay-pick p{margin:0;font-size:12px;color:#56728f;font-weight:780}
+.counter-pay-pick>div{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.counter-pay-pick button{
+ display:flex;justify-content:center;align-items:center;gap:8px;
+ background:white;border:2px solid #cedff5;border-radius:10px;
+ min-height:56px;color:#244b7a;font-size:15px;font-weight:790;
+}
+.counter-pay-pick button.selected,.counter-pay-pick button:hover{background:#e8f2ff;border-color:#2e70d2}
+.counter-pay-pick kbd{
+ border-radius:6px;padding:4px 8px;background:#f0f5ff;border:1px solid #cbdffa;
+ color:#1b58b3;font-size:12px;
+}
+.counter-pay-entry{
+ display:grid;grid-template-columns:1fr;gap:9px;
+ justify-items:start;padding:16px;
+ background:#fff;border:1px solid #dae5f3;border-radius:12px;
+}
+.counter-pay-entry input{width:100%;text-align:left;font-size:25px;min-height:50px}
+.counter-pay-add{
+ width:100%;min-height:43px;margin-top:5px;
+ background:#155cc9;color:white;border:0;border-radius:9px;
+ font-size:14px;font-weight:800;
+}
+.counter-pay-complete{
+ padding:13px;text-align:center;background:#e8f8f0;
+ color:#21694c;border:1px solid #bfe7d3;border-radius:10px;
+}
+.counter-pay-complete strong{font-size:20px}
+.counter-pay-complete p{margin:5px 0 0;font-size:13px}
+.counter-pay-split-actions{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.counter-pay-split-actions .counter-pay-finish{width:auto;flex:1}
+.counter-pay-error{
+ border:1px solid #f3bdc2;background:#fff0f1;color:#b43443;
+ margin:0 24px 17px;padding:11px 14px;border-radius:9px;
+ font-weight:720;font-size:13px;
+}
+.counter-pay-footer{
+ display:flex;justify-content:space-between;gap:10px;
+ padding:13px 23px;background:#eef3fb;border-top:1px solid #d9e5f4;
+ color:#607a99;font-size:11px;font-weight:700;
+}
+@media(max-width:620px){
+ .counter-pay-overlay{padding:8px}
+ .counter-pay-dialog{max-height:calc(100dvh - 16px)}
+ .counter-pay-header{padding:13px 17px}
+ .counter-pay-header h2{font-size:20px}
+ .counter-pay-total strong{font-size:36px}
+ .counter-pay-body{padding:16px;gap:12px}
+ .counter-pay-options{gap:9px}
+ .counter-pay-options button{padding:12px 15px;min-height:98px}
+ .counter-pay-options button>span{font-size:24px}
+ .counter-pay-options button strong{font-size:16px}
+ .counter-pay-options kbd{right:9px;top:9px;width:29px;height:29px;font-size:14px}
+ .counter-pay-pick button{font-size:12px;gap:5px}
+ .counter-pay-remaining strong{font-size:23px}
+}
