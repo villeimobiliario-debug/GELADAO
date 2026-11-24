@@ -192,7 +192,7 @@ function App(){
  const [period,setPeriod]=useState('hoje'),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [query,setQuery]=useState(''),[customerQuery,setCustomerQuery]=useState(''),[orderQuery,setOrderQuery]=useState('');
  const [saleOpen,setSaleOpen]=useState(false),[saleChannel,setSaleChannel]=useState<'balcao'|'delivery'>('delivery'),[editing,setEditing]=useState<Order|null>(null);
- const [counterQty,setCounterQty]=useState('1'),[counterTendered,setCounterTendered]=useState(''),[counterError,setCounterError]=useState(''),[counterChoiceIndex,setCounterChoiceIndex]=useState(-1),[counterLastProductId,setCounterLastProductId]=useState<string|null>(null),[counterPendingProductId,setCounterPendingProductId]=useState<string|null>(null),[counterPaymentOpen,setCounterPaymentOpen]=useState(false),[counterClock,setCounterClock]=useState(()=>new Date());
+ const [counterQty,setCounterQty]=useState('1'),[counterPaymentError,setCounterPaymentError]=useState(''),[counterError,setCounterError]=useState(''),[counterChoiceIndex,setCounterChoiceIndex]=useState(-1),[counterLastProductId,setCounterLastProductId]=useState<string|null>(null),[counterPendingProductId,setCounterPendingProductId]=useState<string|null>(null),[counterPaymentOpen,setCounterPaymentOpen]=useState(false),[counterClock,setCounterClock]=useState(()=>new Date());
  const [form,setForm]=useState<Form>(initialForm),[cart,setCart]=useState<Line[]>([]),[productSearch,setProductSearch]=useState(''),[customerSearch,setCustomerSearch]=useState(''),[customerChoiceIndex,setCustomerChoiceIndex]=useState(-1);
  const [newProduct,setNewProduct]=useState(false),[editProduct,setEditProduct]=useState<Product|null>(null);
  const [productForm,setProductForm]=useState({name:'',category_id:'',barcode:'',sku:'',unit:'UN',purchase_price:'0',sale_price:'0',track_stock:false,stock_qty:'0',min_stock:'0',active:true});
@@ -252,12 +252,13 @@ function App(){
   }
   if(!saleOpen)return;
   if(e.key==='Escape'){e.preventDefault();if(saleChannel==='balcao'&&counterPaymentOpen){setCounterPaymentOpen(false);counterSearchRef.current?.focus()}else closeSale();return}
+  if(saleChannel==='balcao'&&counterPaymentOpen)return;
   if(saleChannel==='balcao'){
    if(e.key==='F3'||e.key==='F4'){e.preventDefault();counterSearchRef.current?.focus();return}
    if(e.key==='F5'){e.preventDefault();const last=cart[cart.length-1];if(last&&window.confirm('Remover '+last.product.name+' da venda?'))changeQty(last.product.id,0);return}
-   if(e.key==='F6'){e.preventDefault();setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-discount')?.focus());return}
+   if(e.key==='F6'){e.preventDefault();if(!cart.length){setNotice('Adicione um produto antes de informar o pagamento.');return}setCounterPaymentError('');setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-discount')?.focus());return}
    if(e.key==='F7'){e.preventDefault();const last=orders.find(o=>o.channel==='balcao'&&o.status==='active');if(last)print(last);return}
-   if(e.key==='F8'){e.preventDefault();setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-payment')?.focus());return}
+   if(e.key==='F8'){e.preventDefault();if(!cart.length){setNotice('Adicione ao menos um produto antes de pagar.');return}setCounterPaymentError('');setCounterPaymentOpen(true);return}
   }else{
    if(e.key==='F4'){e.preventDefault();searchRef.current?.focus();return}
    if(e.key==='F6'){e.preventDefault();document.getElementById('delivery-street')?.focus();return}
@@ -266,7 +267,7 @@ function App(){
   if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();void saveSale()}
  };
  window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)
- },[saleOpen,saleChannel,page,form,cart,editing,staff?.active,busy,newProduct,newCustomer,counterTendered,counterPaymentOpen,orders]);
+ },[saleOpen,saleChannel,page,form,cart,editing,staff?.active,busy,newProduct,newCustomer,counterPaymentOpen,orders]);
  useEffect(()=>{if(!saleOpen)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=previous}},[saleOpen]);
  useEffect(()=>{if(!saleOpen||saleChannel!=='balcao')return;setCounterClock(new Date());const timer=window.setInterval(()=>setCounterClock(new Date()),1000);return()=>window.clearInterval(timer)},[saleOpen,saleChannel]);
  useEffect(()=>{
@@ -305,7 +306,7 @@ function App(){
  }
  async function requestAccess(){if(!email.trim()||password.length<8){setNotice('Informe e-mail e senha com pelo menos 8 caracteres.');return}setBusy(true);const {error}=await sb.auth.signUp({email:email.trim(),password});setNotice(error?error.message:'Solicitação criada. Confirme o e-mail, se solicitado; um administrador precisará autorizar o perfil.');setBusy(false)}
  async function logout(){await sb.auth.signOut();setStaff(null);setUser(null);setPage('dashboard')}
- function openSale(channel:'balcao'|'delivery'){setSaleChannel(channel);setEditing(null);setForm({...initialForm});setCart([]);setProductSearch('');setCustomerSearch('');setCustomerChoiceIndex(-1);setCounterQty('1');setCounterTendered('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(null);setCounterPendingProductId(null);setCounterPaymentOpen(false);setNotice('');setSaleOpen(true)}
+ function openSale(channel:'balcao'|'delivery'){setSaleChannel(channel);setEditing(null);setForm({...initialForm});setCart([]);setProductSearch('');setCustomerSearch('');setCustomerChoiceIndex(-1);setCounterQty('1');setCounterPaymentError('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(null);setCounterPendingProductId(null);setCounterPaymentOpen(false);setNotice('');setSaleOpen(true)}
  function startFreshCounter(){
   if(busy)return;
   if((editing||cart.length||form.customer_name.trim()||form.customer_phone.trim()||form.note.trim()||number(form.discount)>0)&&!window.confirm('Descartar a venda atual e iniciar outra venda de balcão?'))return;
@@ -320,7 +321,7 @@ function App(){
  async function editSale(o:Order){setLoading(true);try{const {data,error}=await sb.from('order_items').select('*').eq('order_id',o.id);if(error)throw error;
   const lines:Line[]=[];for(const item of data||[]){const p=products.find(v=>v.id===item.product_id);if(p)lines.push({product:p,quantity:Number(item.quantity),unit_price:Number(item.unit_price)})}
   if(lines.length!==(data||[]).length)throw Error('Produto de algum item não está disponível no cadastro.');
-  setSaleChannel(o.channel);setEditing(o);setForm({customer_id:o.customer_id||'',customer_name:o.customer_name||'',customer_phone:o.customer_phone||'',street:o.street||'',neighborhood:o.neighborhood||'',house_number:o.house_number||'',complement:o.complement||'',note:o.note||'',delivery_fee:String(o.delivery_fee),discount:String(o.discount),payment_method:o.payment_method,paid:o.payment_status==='paid',collect_on_delivery:o.collect_on_delivery||false,delivery_collection_amount:o.delivery_collection_amount==null?'':String(o.delivery_collection_amount)});setCart(lines);setProductSearch('');setCustomerSearch('');setCounterQty('1');setCounterTendered('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(lines.length?lines[lines.length-1].product.id:null);setCounterPendingProductId(null);setCounterPaymentOpen(false);setSaleOpen(true)
+  setSaleChannel(o.channel);setEditing(o);setForm({customer_id:o.customer_id||'',customer_name:o.customer_name||'',customer_phone:o.customer_phone||'',street:o.street||'',neighborhood:o.neighborhood||'',house_number:o.house_number||'',complement:o.complement||'',note:o.note||'',delivery_fee:String(o.delivery_fee),discount:String(o.discount),payment_method:o.payment_method,paid:o.payment_status==='paid',collect_on_delivery:o.collect_on_delivery||false,delivery_collection_amount:o.delivery_collection_amount==null?'':String(o.delivery_collection_amount)});setCart(lines);setProductSearch('');setCustomerSearch('');setCounterQty('1');setCounterPaymentError('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(lines.length?lines[lines.length-1].product.id:null);setCounterPendingProductId(null);setCounterPaymentOpen(false);setSaleOpen(true)
  }catch(err){showError(err)}finally{setLoading(false)}}
  function addProduct(p:Product){setCart(lines=>{const existing=lines.find(x=>x.product.id===p.id);return existing?lines.map(x=>x.product.id===p.id?{...x,quantity:x.quantity+1}:x):[...lines,{product:p,quantity:1,unit_price:Number(p.sale_price)}]});setProductSearch('');searchRef.current?.focus()}
  function changeQty(id:string,qty:number){setCart(lines=>lines.map(x=>x.product.id===id?{...x,quantity:qty}:x).filter(x=>x.quantity>0))}
@@ -349,22 +350,39 @@ function App(){
   window.requestAnimationFrame(()=>counterSearchRef.current?.focus());
  }
  const subtotal=cart.reduce((s,x)=>s+x.quantity*x.unit_price,0),total=Math.max(0,subtotal+number(form.delivery_fee)-number(form.discount));
- async function saveSale(){if(busy)return;if(!cart.length){setNotice('Adicione ao menos um produto.');return}
-  if(!cart.every(l=>l.quantity>0&&Number.isFinite(l.quantity))||![number(form.delivery_fee),number(form.discount),total].every(Number.isFinite)||number(form.discount)>subtotal+(saleChannel==='delivery'?number(form.delivery_fee):0)){setNotice('Confira quantidades, descontos e valores.');return}
-  if(form.paid&&form.payment_method==='nao_informado'){setNotice('Escolha a forma de pagamento.');setCounterError('Selecione a forma de pagamento antes de confirmar.');return}
-  if(saleChannel==='balcao'&&form.paid&&form.payment_method==='dinheiro'&&counterTendered.trim()&&(!Number.isFinite(number(counterTendered))||number(counterTendered)<total)){setNotice('O valor recebido em dinheiro não pode ser inferior ao total quando a venda é marcada como paga.');setCounterError('Valor recebido insuficiente. Confira o pagamento ou desmarque pagamento recebido.');return}
-  if(form.paid&&form.collect_on_delivery&&saleChannel==='delivery'){setNotice('Escolha entre pagamento recebido e receber na entrega.');return}
-  if(saleChannel==='delivery'&&form.collect_on_delivery&&form.delivery_collection_amount.trim()&&(!Number.isFinite(number(form.delivery_collection_amount))||number(form.delivery_collection_amount)<=0||number(form.delivery_collection_amount)>999999.99)){setNotice('Informe um valor válido para receber na entrega, ou deixe o campo vazio para cobrar o total.');return}
+ async function saveSale(payments?:CounterPayment[]){if(busy)return;
+  if(saleChannel==='balcao'&&!payments){
+   if(!cart.length){setNotice('Adicione ao menos um produto.');return}
+   setCounterPaymentError('');setCounterPaymentOpen(true);return;
+  }
+  const effectiveForm=payments?{...form,payment_method:payments.length>1?'misto':payments[0]?.method||'nao_informado',paid:true}:form;
+  if(payments){
+   const sum=Math.round(payments.reduce((n,p)=>n+p.amount,0)*100);
+   if(!payments.length||sum!==Math.round(total*100)||payments.some(p=>!Number.isFinite(p.amount)||p.amount<=0||
+     (p.tendered_amount!==null&&(p.method!=='dinheiro'||p.tendered_amount<p.amount)))||
+     (payments.length>1&&new Set(payments.map(p=>p.method)).size<2)){
+    setCounterPaymentError('Os pagamentos devem somar exatamente o total e usar modalidades diferentes no modo dividido.');return;
+   }
+  }
+  if(!cart.length){setNotice('Adicione ao menos um produto.');return}
+  if(!cart.every(l=>l.quantity>0&&Number.isFinite(l.quantity))||![number(effectiveForm.delivery_fee),number(effectiveForm.discount),total].every(Number.isFinite)||number(effectiveForm.discount)>subtotal+(saleChannel==='delivery'?number(effectiveForm.delivery_fee):0)){setNotice('Confira quantidades, descontos e valores.');return}
+  if(effectiveForm.paid&&effectiveForm.payment_method==='nao_informado'){setNotice('Escolha a forma de pagamento.');setCounterError('Selecione a forma de pagamento antes de confirmar.');return}
+  if(effectiveForm.paid&&effectiveForm.collect_on_delivery&&saleChannel==='delivery'){setNotice('Escolha entre pagamento recebido e receber na entrega.');return}
+  if(saleChannel==='delivery'&&effectiveForm.collect_on_delivery&&effectiveForm.delivery_collection_amount.trim()&&(!Number.isFinite(number(effectiveForm.delivery_collection_amount))||number(effectiveForm.delivery_collection_amount)<=0||number(effectiveForm.delivery_collection_amount)>999999.99)){setNotice('Informe um valor válido para receber na entrega, ou deixe o campo vazio para cobrar o total.');return}
   setBusy(true);try{
-   let customerId=form.customer_id||null;
-   if(!customerId&&(form.customer_name.trim()||form.customer_phone.trim())){
-    const{data,error}=await sb.from('customers').insert({name:form.customer_name.trim()||null,phone:form.customer_phone.trim()||null,street:form.street||null,neighborhood:form.neighborhood||null,house_number:form.house_number||null,complement:form.complement||null}).select('id').single();
+   let customerId=effectiveForm.customer_id||null;
+   if(!customerId&&(effectiveForm.customer_name.trim()||effectiveForm.customer_phone.trim())){
+    const{data,error}=await sb.from('customers').insert({name:effectiveForm.customer_name.trim()||null,phone:effectiveForm.customer_phone.trim()||null,street:effectiveForm.street||null,neighborhood:effectiveForm.neighborhood||null,house_number:effectiveForm.house_number||null,complement:effectiveForm.complement||null}).select('id').single();
     if(error)throw error;customerId=data.id;
    }
-   const payload={channel:saleChannel,customer_id:customerId,customer_name:form.customer_name,customer_phone:form.customer_phone,street:form.street,neighborhood:form.neighborhood,house_number:form.house_number,complement:form.complement,note:form.note,delivery_fee:saleChannel==='balcao'?0:number(form.delivery_fee),discount:number(form.discount),payment_method:form.payment_method,paid:form.paid,collect_on_delivery:saleChannel==='delivery'&&form.collect_on_delivery,delivery_collection_amount:saleChannel==='delivery'&&form.collect_on_delivery&&form.delivery_collection_amount.trim()?number(form.delivery_collection_amount):null,request_id:editing?undefined:requestId.current,items:cart.map(l=>({product_id:l.product.id,quantity:l.quantity,...(admin?{unit_price:l.unit_price}:{})}))};
-   const {error}=await sb.rpc('save_order',{p_data:payload,p_order_id:editing?.id||null,p_expected_version:editing?.version||null});if(error)throw error;
+   const payload={channel:saleChannel,customer_id:customerId,customer_name:effectiveForm.customer_name,customer_phone:effectiveForm.customer_phone,street:effectiveForm.street,neighborhood:effectiveForm.neighborhood,house_number:effectiveForm.house_number,complement:effectiveForm.complement,note:effectiveForm.note,delivery_fee:saleChannel==='balcao'?0:number(effectiveForm.delivery_fee),discount:number(effectiveForm.discount),payment_method:effectiveForm.payment_method,paid:effectiveForm.paid,collect_on_delivery:saleChannel==='delivery'&&effectiveForm.collect_on_delivery,delivery_collection_amount:saleChannel==='delivery'&&effectiveForm.collect_on_delivery&&effectiveForm.delivery_collection_amount.trim()?number(effectiveForm.delivery_collection_amount):null,request_id:editing?undefined:requestId.current,items:cart.map(l=>({product_id:l.product.id,quantity:l.quantity,...(admin?{unit_price:l.unit_price}:{})}))};
+   const args={p_data:payload,p_order_id:editing?.id||null,p_expected_version:editing?.version||null};
+   const {error}=payments&&saleChannel==='balcao'
+      ?await sb.rpc('save_balcao_checkout',{...args,p_payments:payments.map(p=>({method:p.method,amount:p.amount.toFixed(2),tendered_amount:p.tendered_amount===null?null:p.tendered_amount.toFixed(2)}))})
+      :await sb.rpc('save_order',args);
+   if(error)throw error;
    setSaleOpen(false);setEditing(null);requestId.current=crypto.randomUUID();setNotice('Venda salva no banco de dados.');await refresh()
-  }catch(err){showError(err)}finally{setBusy(false)}}
+  }catch(err){if(payments){setCounterPaymentError(err instanceof Error?err.message:String(err))}else showError(err)}finally{setBusy(false)}}
  const requestId=useRef(crypto.randomUUID());
  async function advance(o:Order){try{const {error}=await sb.rpc('advance_delivery',{p_order_id:o.id,p_expected_version:o.version});if(error)throw error;await refresh()}catch(err){showError(err)}}
  async function returnToOrders(o:Order){
@@ -556,17 +574,12 @@ function App(){
      </section>
     </div>
     
-    {counterPaymentOpen&&<div className="counter-payment-drawer" role="region" aria-label="Pagamento e desconto">
-     <div className="counter-payment-title"><b>Pagamento e desconto</b><button type="button" onClick={()=>{setCounterPaymentOpen(false);counterSearchRef.current?.focus()}}>Fechar ×</button></div>
-     <div className="counter-payment-bar">
-      <label>Desconto (R$)<input id="counter-discount" type="number" min="0" step=".01" value={form.discount} onChange={e=>updateForm('discount',e.target.value)}/></label>
-      <label>Forma de pagamento<select id="counter-payment" value={form.payment_method} onChange={e=>{updateForm('payment_method',e.target.value);setCounterError('')}}>{Object.keys(paymentLabels).map(k=><option key={k} value={k}>{paymentLabels[k]}</option>)}</select></label>
-      {form.payment_method==='dinheiro'&&<label>Valor recebido (R$)<input type="number" inputMode="decimal" min="0" step=".01" placeholder="Opcional" value={counterTendered} onChange={e=>setCounterTendered(e.target.value)}/></label>}
-      <label className="counter-paid"><input type="checkbox" checked={form.paid} onChange={e=>updateForm('paid',e.target.checked)}/> Pagamento recebido</label>
-      {form.payment_method==='dinheiro'&&counterTendered.trim()&&Number.isFinite(number(counterTendered))&&<div className="counter-change"><small>{number(counterTendered)>=total?'Troco':'Falta receber'}</small><strong>{cash(Math.abs(number(counterTendered)-total))}</strong></div>}
-     </div>
-     <button type="submit" className="counter-pay-confirm" disabled={busy||!cart.length}>{busy?'Salvando...':'Finalizar venda · Ctrl + Enter'}</button>
-    </div>}
+    {counterPaymentOpen&&<CounterCheckoutDialog
+      total={total} discount={form.discount}
+      onDiscountChange={value=>{updateForm('discount',value);setCounterPaymentError('')}}
+      onClose={()=>{if(!busy){setCounterPaymentOpen(false);counterSearchRef.current?.focus()}}}
+      onConfirm={payments=>{void saveSale(payments)}} busy={busy}
+      externalError={counterPaymentError}/>}
     <div className="counter-bottom-summary">
      <div className="counter-cash-status"><span aria-hidden="true" className="counter-register-icon">▣</span><strong>Caixa em operação</strong></div>
      <div className="counter-total-panel"><span>Total da venda</span><strong>{cash(total)}</strong>
@@ -579,9 +592,9 @@ function App(){
      <button type="button" onClick={()=>counterSearchRef.current?.focus()}><kbd>F3</kbd> Consultar produto</button>
      <button type="button" onClick={()=>counterSearchRef.current?.focus()}><kbd>F4</kbd> Código</button>
      <button type="button" disabled={!cart.length} onClick={()=>{const last=cart[cart.length-1];if(last&&window.confirm('Remover '+last.product.name+' da venda?'))changeQty(last.product.id,0)}}><kbd>F5</kbd> Remover item</button>
-     <button type="button" onClick={()=>{setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-discount')?.focus())}}><kbd>F6</kbd> Desconto</button>
+     <button type="button" onClick={()=>{if(!cart.length){setNotice('Adicione um produto primeiro.');return}setCounterPaymentError('');setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-discount')?.focus())}}><kbd>F6</kbd> Desconto</button>
      <button type="button" disabled={!counterLastOrder} onClick={()=>{if(counterLastOrder)print(counterLastOrder)}}><kbd>F7</kbd> Reimprimir</button>
-     <button type="button" onClick={()=>{setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-payment')?.focus())}}><kbd>F8</kbd> Pagamento</button>
+     <button type="button" onClick={()=>{if(!cart.length){setNotice('Adicione um produto primeiro.');return}setCounterPaymentError('');setCounterPaymentOpen(true)}}><kbd>F8</kbd> Pagamento</button>
      <button type="button" onClick={closeSale}><kbd>Esc</kbd> Sair</button>
     </footer>
    </form>
