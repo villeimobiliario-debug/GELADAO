@@ -252,7 +252,7 @@ function App(){
    window.requestAnimationFrame(()=>counterSearchRef.current?.focus());
    return;
   }
-  if(e.key==='F2'&&!newProduct&&!newCustomer){
+  if(e.key==='F2'&&!newProduct&&!newCustomer&&!counterPaymentOpen){
    e.preventDefault();
    if(saleOpen&&saleChannel==='balcao')startFreshCounter();
    else if(!saleOpen)openSale(page==='balcao'?'balcao':'delivery');
