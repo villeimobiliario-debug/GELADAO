@@ -96,7 +96,15 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
   }
  };
  const keys=(e:ReactKey<HTMLDivElement>)=>{
-  if(e.key==='Escape'){e.preventDefault();e.stopPropagation();onClose();return}
+  if(e.key==='Escape'){e.preventDefault();e.stopPropagation();if(!busy)onClose();return}
+  if(e.key==='Tab'){
+   const focusable=[...dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled)')||[]];
+   if(focusable.length){
+    const first=focusable[0],last=focusable[focusable.length-1];
+    if(e.shiftKey&&(document.activeElement===first||document.activeElement===dialogRef.current)){e.preventDefault();last.focus();return}
+    if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();return}
+   }
+  }
   if(busy)return;
   if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();e.stopPropagation();confirm();return}
   const input=(e.target as HTMLElement).tagName==='INPUT';
@@ -365,8 +373,8 @@ function App(){
    }
   }
   if(!cart.length){setNotice('Adicione ao menos um produto.');return}
-  if(!cart.every(l=>l.quantity>0&&Number.isFinite(l.quantity))||![number(effectiveForm.delivery_fee),number(effectiveForm.discount),total].every(Number.isFinite)||number(effectiveForm.discount)>subtotal+(saleChannel==='delivery'?number(effectiveForm.delivery_fee):0)){setNotice('Confira quantidades, descontos e valores.');return}
-  if(effectiveForm.paid&&effectiveForm.payment_method==='nao_informado'){setNotice('Escolha a forma de pagamento.');setCounterError('Selecione a forma de pagamento antes de confirmar.');return}
+  if(!cart.every(l=>l.quantity>0&&Number.isFinite(l.quantity))||![number(effectiveForm.delivery_fee),number(effectiveForm.discount),total].every(Number.isFinite)||number(effectiveForm.discount)<0||number(effectiveForm.discount)>subtotal+(saleChannel==='delivery'?number(effectiveForm.delivery_fee):0)){setNotice('Confira quantidades, descontos e valores.');if(payments)setCounterPaymentError('Desconto inválido ou superior ao valor dos produtos.');return}
+  if(effectiveForm.paid&&effectiveForm.payment_method==='nao_informado'){setNotice('Escolha a forma de pagamento.');if(payments)setCounterPaymentError('Selecione a forma de pagamento.');else setCounterError('Selecione a forma de pagamento antes de confirmar.');return}
   if(effectiveForm.paid&&effectiveForm.collect_on_delivery&&saleChannel==='delivery'){setNotice('Escolha entre pagamento recebido e receber na entrega.');return}
   if(saleChannel==='delivery'&&effectiveForm.collect_on_delivery&&effectiveForm.delivery_collection_amount.trim()&&(!Number.isFinite(number(effectiveForm.delivery_collection_amount))||number(effectiveForm.delivery_collection_amount)<=0||number(effectiveForm.delivery_collection_amount)>999999.99)){setNotice('Informe um valor válido para receber na entrega, ou deixe o campo vazio para cobrar o total.');return}
   setBusy(true);try{
