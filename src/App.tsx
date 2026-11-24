@@ -357,7 +357,7 @@ function App(){
       <div className="counter-entry-grid">
        <label htmlFor="counter-qty">Quantidade
         <input id="counter-qty" ref={counterQtyRef} type="number" min="1" max="100000" step="1" placeholder="1" value={counterQty} onChange={e=>setCounterQty(e.target.value)}
-         onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();if(counterPendingProduct)addCounterProduct(counterPendingProduct);else if(counterSelected)prepareCounterQuantity(counterSelected);else counterSearchRef.current?.focus()}}}/>
+         onKeyDown={e=>{if(e.key==='Enter'&&!e.ctrlKey){e.preventDefault();e.stopPropagation();if(counterPendingProduct)addCounterProduct(counterPendingProduct);else if(counterSelected)prepareCounterQuantity(counterSelected);else counterSearchRef.current?.focus()}}}/>
        </label>
        <label>Preço unitário<input readOnly value={counterPreview?cash(Number(counterPreview.sale_price)):cash(0)} tabIndex={-1}/></label>
        <label>Total do item<input readOnly value={counterPreview?cash(Number(counterPreview.sale_price)*counterPreviewQty):cash(0)} tabIndex={-1}/></label>
