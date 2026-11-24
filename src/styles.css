@@ -1964,8 +1964,8 @@ thead th{background:#fbfcfe}
 .counter-summary-product span{
   flex:1;
   min-width:0;
-  font-size:16px;
-  font-weight:760;
+  font-size:20px;
+  font-weight:780;
   line-height:1.4;
   overflow-wrap:anywhere;
   color:#142f57;
@@ -1994,15 +1994,15 @@ thead th{background:#fbfcfe}
   opacity:1;
 }
 .counter-ticket .counter-summary-table td.counter-summary-unit{
-  font-size:15px;
-  font-weight:710;
+  font-size:19px;
+  font-weight:760;
   color:#385473;
   text-align:right;
   white-space:nowrap;
 }
 .counter-ticket .counter-summary-table td.counter-summary-total{
   color:#103b83;
-  font-size:17px;
+  font-size:22px;
   font-weight:850;
   text-align:right;
   white-space:nowrap;
@@ -2011,13 +2011,16 @@ thead th{background:#fbfcfe}
   .counter-ticket .counter-summary-table{min-width:470px}
   .counter-ticket .counter-summary-table th{font-size:12px;padding:13px 9px}
   .counter-ticket .counter-summary-table td{padding:13px 9px}
-  .counter-summary-product span{font-size:14px}
-  .counter-ticket .counter-summary-table td.counter-summary-unit{font-size:13.5px}
-  .counter-ticket .counter-summary-table td.counter-summary-total{font-size:15px}
+  .counter-summary-product span{font-size:18px}
+  .counter-ticket .counter-summary-table td.counter-summary-unit{font-size:17px}
+  .counter-ticket .counter-summary-table td.counter-summary-total{font-size:20px}
   .counter-summary-quantity strong{font-size:16px;min-width:40px}
 }
 @media(max-width:700px){
   .counter-ticket .counter-summary-table{min-width:475px}
   .counter-ticket .counter-summary-table td{padding:13px 8px}
+  .counter-summary-product span{font-size:16px}
+  .counter-ticket .counter-summary-table td.counter-summary-unit{font-size:16px}
+  .counter-ticket .counter-summary-table td.counter-summary-total{font-size:19px}
   .counter-summary-remove{min-width:27px}
 }
