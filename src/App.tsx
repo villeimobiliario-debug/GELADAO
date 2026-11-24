@@ -23,9 +23,9 @@ const number=(s:string)=>Number(String(s||0).trim().replace(',','.'));
 const escapeHtml=(x:unknown)=>String(x??'').replace(/[&<>"']/g,a=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[a]||a));
 function newForm(c?:Customer):Form{return {...initialForm,customer_id:c?.id||'',customer_name:c?.name||'',customer_phone:c?.phone||'',street:c?.street||'',neighborhood:c?.neighborhood||'',house_number:c?.house_number||'',complement:c?.complement||''}}
 
-type CounterMethod='dinheiro'|'pix'|'cartao';
+type CounterMethod='dinheiro'|'pix'|'cartao'|'conta';
 type CounterPayment={method:CounterMethod;amount:number;tendered_amount:number|null};
-type CounterPayStage='choose'|'cash'|'confirm'|'split';
+type CounterPayStage='choose'|'cash'|'confirm'|'split'|'account';
 function paymentCents(input:string):number|null{
  const v=input.trim().replace(',','.');
  if(!/^(?:0|[1-9][0-9]{0,5})(?:\.[0-9]{1,2})?$/.test(v))return null;
@@ -79,13 +79,15 @@ function CreditCustomerPicker({customers,selectedId,onSelect,balances}:{
  </div>;
 }
 
-function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfirm,busy,externalError}:{
+function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfirm,busy,externalError,customers,balances,defaultCustomerId}:{
  total:number;discount:string;onDiscountChange:(value:string)=>void;onClose:()=>void;
- onConfirm:(lines:CounterPayment[])=>void;busy:boolean;externalError:string;
+ onConfirm:(lines:CounterPayment[],customerId?:string)=>void;busy:boolean;externalError:string;
+ customers:Customer[];balances:Record<string,number>;defaultCustomerId:string;
 }){
  const [stage,setStage]=useState<CounterPayStage>('choose');
  const [selected,setSelected]=useState<CounterMethod|null>(null);
  const [cashReceived,setCashReceived]=useState('');
+ const [creditCustomerId,setCreditCustomerId]=useState<string|null>(defaultCustomerId&&customers.some(c=>c.id===defaultCustomerId&&c.active)?defaultCustomerId:null);
  const [splitLines,setSplitLines]=useState<CounterPayment[]>([]);
  const [splitMethod,setSplitMethod]=useState<CounterMethod|null>(null);
  const [splitAmount,setSplitAmount]=useState('');
@@ -96,10 +98,11 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
  const remaining=totalCents-splitLines.reduce((sum,p)=>sum+Math.round(p.amount*100),0);
  const cashCents=cashReceived.trim()?paymentCents(cashReceived):totalCents;
  const cashChange=cashCents===null?null:cashCents-totalCents;
- const payNames:Record<CounterMethod,string>={dinheiro:'Dinheiro',pix:'Pix',cartao:'Cartão'};
+ const payNames:Record<CounterMethod,string>={dinheiro:'Dinheiro',pix:'Pix',cartao:'Cartão',conta:'Conta / Fiado'};
  useEffect(()=>{setStage('choose');setSelected(null);setSplitLines([]);setSplitMethod(null);setSplitAmount('');setError('')},[total]);
  useEffect(()=>{
   if(stage==='cash')cashRef.current?.focus();
+  else if(stage==='split'&&splitMethod==='conta'&&!creditCustomerId)dialogRef.current?.focus();
   else if(stage==='split'&&splitMethod)splitRef.current?.focus();
   else dialogRef.current?.focus();
  },[stage,splitMethod]);
@@ -107,6 +110,7 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
   if(busy)return;
   setSelected(method);setError('');
   if(method==='dinheiro'){setCashReceived('');setStage('cash')}
+  else if(method==='conta')setStage('account');
   else setStage('confirm');
  };
  const startSplit=()=>{
@@ -115,6 +119,7 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
  };
  const addSplit=()=>{
   if(busy||!splitMethod)return;
+  if(splitMethod==='conta'&&!creditCustomerId){setError('Selecione um cliente cadastrado para a parcela fiada.');return}
   if(splitLines.length>=8){setError('Limite de oito parcelas por venda.');return}
   const amount=splitAmount.trim()?paymentCents(splitAmount):remaining;
   if(amount===null||amount<=0||amount>remaining){setError('Valor inválido: informe até o restante da venda.');return}
@@ -130,6 +135,10 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
   if(busy)return;
   if(!Number.isFinite(total)||totalCents<=0||totalCents>99999999){setError('O total precisa ser maior que zero e inferior a R$ 1 milhão.');return}
   if(stage==='confirm'&&selected){onConfirm([{method:selected,amount:totalCents/100,tendered_amount:null}]);return}
+  if(stage==='account'){
+   if(!creditCustomerId){setError('Selecione um cliente cadastrado para anotar na Conta.');return}
+   onConfirm([{method:'conta',amount:totalCents/100,tendered_amount:null}],creditCustomerId);return;
+  }
   if(stage==='cash'){
    if(cashCents===null||cashCents<totalCents){setError('Informe um valor recebido suficiente.');return}
    onConfirm([{method:'dinheiro',amount:totalCents/100,tendered_amount:cashReceived.trim()?cashCents/100:null}]);return;
@@ -139,7 +148,8 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
    if(remaining!==0||splitLines.length<2||new Set(splitLines.map(p=>p.method)).size<2){
     setError('Distribua todo o total entre pelo menos duas formas diferentes.');return;
    }
-   onConfirm(splitLines);
+   if(splitLines.some(p=>p.method==='conta')&&!creditCustomerId){setError('Selecione o cliente da Conta.');return}
+   onConfirm(splitLines,creditCustomerId||undefined);
   }
  };
  const keys=(e:ReactKey<HTMLDivElement>)=>{
@@ -155,15 +165,15 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
   if(busy)return;
   if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();e.stopPropagation();confirm();return}
   const input=(e.target as HTMLElement).tagName==='INPUT';
-  if(stage==='choose'&&!input&&['1','2','3','4'].includes(e.key)){
+  if(stage==='choose'&&!input&&['1','2','3','4','5'].includes(e.key)){
    e.preventDefault();e.stopPropagation();
    if(e.key==='4')startSplit();
-   else chooseMethod(({1:'dinheiro',2:'pix',3:'cartao'} as Record<string,CounterMethod>)[e.key]);
+   else chooseMethod(({1:'dinheiro',2:'pix',3:'cartao',5:'conta'} as Record<string,CounterMethod>)[e.key]);
    return;
   }
-  if(stage==='split'&&!splitMethod&&!input&&['1','2','3'].includes(e.key)){
+  if(stage==='split'&&!splitMethod&&!input&&['1','2','3','4'].includes(e.key)){
    e.preventDefault();e.stopPropagation();
-   setSplitMethod(({1:'dinheiro',2:'pix',3:'cartao'} as Record<string,CounterMethod>)[e.key]);setError('');
+   setSplitMethod(({1:'dinheiro',2:'pix',3:'cartao',4:'conta'} as Record<string,CounterMethod>)[e.key]);setError('');
    return;
   }
   if(stage==='split'&&!splitMethod&&!input&&e.key==='Backspace'&&splitLines.length){
@@ -186,14 +196,25 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
      <button type="button" onClick={()=>chooseMethod('pix')}><kbd>2</kbd><span>▦</span><strong>Pix</strong></button>
      <button type="button" onClick={()=>chooseMethod('cartao')}><kbd>3</kbd><span>▣</span><strong>Cartão</strong></button>
      <button type="button" onClick={startSplit}><kbd>4</kbd><span>⇄</span><strong>Dividir pagamento</strong></button>
+     <button type="button" onClick={()=>chooseMethod('conta')} className="counter-pay-account-option"><kbd>5</kbd><span>▧</span><strong>Conta — Fiado</strong><small>Anotar na conta de cliente cadastrado</small></button>
     </div>
-    <p className="counter-pay-hint">Digite 1, 2, 3 ou 4. Pagamento integral usa automaticamente o valor total.</p>
+    <p className="counter-pay-hint">Digite 1, 2, 3, 4 ou 5. Fiados exigem cliente cadastrado e não entram como recebidos.</p>
    </section>}
    {stage==='confirm'&&<section className="counter-pay-body counter-pay-ready">
     <h3>{selected?payNames[selected]:''}</h3><p>Pagamento integral de <strong>{cash(total)}</strong></p>
     <p className="counter-pay-hint">Confirme o recebimento antes de registrar a venda.</p>
     <button type="button" className="counter-pay-finish" onClick={confirm} disabled={busy}>{busy?'Salvando...':'Confirmar pagamento · Enter'}</button>
     <button type="button" className="counter-pay-back" onClick={()=>setStage('choose')} disabled={busy}>Alterar forma</button>
+   </section>}
+   {stage==='account'&&<section className="counter-pay-body counter-pay-account">
+    <h3>Conta · Anotar fiado</h3>
+    <p className="counter-pay-hint">Escolha o cliente cadastrado para lançar a compra na conta. Este valor ficará a receber.</p>
+    <CreditCustomerPicker customers={customers} selectedId={creditCustomerId} onSelect={setCreditCustomerId} balances={balances}/>
+    {creditCustomerId&&<div className="counter-credit-preview"><span>Novo saldo devedor</span>
+      <strong>{cash((balances[creditCustomerId]||0)+total)}</strong>
+      <small>Compra atual: {cash(total)} · não recebida</small></div>}
+    <button type="button" className="counter-pay-finish" onClick={confirm} disabled={busy||!creditCustomerId}>{busy?'Salvando...':'Anotar na Conta · Enter'}</button>
+    <button type="button" className="counter-pay-back" onClick={()=>setStage('choose')} disabled={busy}>Alterar forma de pagamento</button>
    </section>}
    {stage==='cash'&&<section className="counter-pay-body counter-pay-cash"><h3>Pagamento em dinheiro</h3>
     <label htmlFor="counter-cash-received">Valor entregue pelo cliente (R$)</label>
@@ -211,8 +232,8 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
      <button type="button" aria-label={'Remover parcela '+(i+1)}
       onClick={()=>{setSplitLines(v=>v.filter((_,j)=>j!==i));setError('')}}>×</button>
     </div>)}</div>}
-    {remaining>0&&<div className="counter-pay-pick"><p>Próxima forma · teclas 1, 2 ou 3</p>
-     <div>{(['dinheiro','pix','cartao'] as CounterMethod[]).map((v,i)=><button key={v} type="button"
+    {remaining>0&&<div className="counter-pay-pick"><p>Próxima forma · teclas 1, 2, 3 ou 4 (Conta)</p>
+     <div>{(['dinheiro','pix','cartao','conta'] as CounterMethod[]).map((v,i)=><button key={v} type="button"
        className={v===splitMethod?'selected':''} onClick={()=>{setSplitMethod(v);setError('')}}><kbd>{i+1}</kbd> {payNames[v]}</button>)}</div>
     </div>}
     {splitMethod&&remaining>0&&<div className="counter-pay-entry">
@@ -222,6 +243,7 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
       {splitMethod==='dinheiro'&&<><label htmlFor="counter-split-received">Dinheiro entregue (opcional)</label>
        <input id="counter-split-received" inputMode="decimal" autoComplete="off" disabled={busy}
         placeholder="Em branco = valor exato" value={splitTendered} onChange={e=>setSplitTendered(e.target.value)}/></>}
+      {splitMethod==='conta'&&<CreditCustomerPicker customers={customers} selectedId={creditCustomerId} onSelect={setCreditCustomerId} balances={balances}/>}
       <button type="button" className="counter-pay-add" onClick={addSplit} disabled={busy}>Adicionar parcela · Enter</button>
     </div>}
     {remaining===0&&<div className="counter-pay-complete"><strong>Pagamento completo!</strong><p>Enter confirma a venda.</p></div>}
