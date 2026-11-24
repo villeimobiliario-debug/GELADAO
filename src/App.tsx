@@ -34,7 +34,7 @@ function App(){
  const [period,setPeriod]=useState('hoje'),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [query,setQuery]=useState(''),[customerQuery,setCustomerQuery]=useState(''),[orderQuery,setOrderQuery]=useState('');
  const [saleOpen,setSaleOpen]=useState(false),[saleChannel,setSaleChannel]=useState<'balcao'|'delivery'>('delivery'),[editing,setEditing]=useState<Order|null>(null);
- const [counterQty,setCounterQty]=useState('1'),[counterTendered,setCounterTendered]=useState(''),[counterError,setCounterError]=useState(''),[counterChoiceIndex,setCounterChoiceIndex]=useState(-1),[counterLastProductId,setCounterLastProductId]=useState<string|null>(null);
+ const [counterQty,setCounterQty]=useState('1'),[counterTendered,setCounterTendered]=useState(''),[counterError,setCounterError]=useState(''),[counterChoiceIndex,setCounterChoiceIndex]=useState(-1),[counterLastProductId,setCounterLastProductId]=useState<string|null>(null),[counterPaymentOpen,setCounterPaymentOpen]=useState(false),[counterClock,setCounterClock]=useState(()=>new Date());
  const [form,setForm]=useState<Form>(initialForm),[cart,setCart]=useState<Line[]>([]),[productSearch,setProductSearch]=useState(''),[customerSearch,setCustomerSearch]=useState(''),[customerChoiceIndex,setCustomerChoiceIndex]=useState(-1);
  const [newProduct,setNewProduct]=useState(false),[editProduct,setEditProduct]=useState<Product|null>(null);
  const [productForm,setProductForm]=useState({name:'',category_id:'',barcode:'',sku:'',unit:'UN',purchase_price:'0',sale_price:'0',track_stock:false,stock_qty:'0',min_stock:'0',active:true});
@@ -76,11 +76,14 @@ function App(){
    return;
   }
   if(!saleOpen)return;
-  if(e.key==='Escape'){e.preventDefault();closeSale();return}
+  if(e.key==='Escape'){e.preventDefault();if(saleChannel==='balcao'&&counterPaymentOpen){setCounterPaymentOpen(false);counterSearchRef.current?.focus()}else closeSale();return}
   if(saleChannel==='balcao'){
+   if(e.key==='F1'){e.preventDefault();if(counterCustomerDetailsRef.current)counterCustomerDetailsRef.current.open=true;window.requestAnimationFrame(()=>counterCustomerRef.current?.focus());return}
    if(e.key==='F3'||e.key==='F4'){e.preventDefault();counterSearchRef.current?.focus();return}
-   if(e.key==='F6'){e.preventDefault();document.getElementById('counter-discount')?.focus();return}
-   if(e.key==='F8'){e.preventDefault();document.getElementById('counter-payment')?.focus();return}
+   if(e.key==='F5'){e.preventDefault();const last=cart[cart.length-1];if(last&&window.confirm('Remover '+last.product.name+' da venda?'))changeQty(last.product.id,0);return}
+   if(e.key==='F6'){e.preventDefault();setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-discount')?.focus());return}
+   if(e.key==='F7'){e.preventDefault();const last=orders.find(o=>o.channel==='balcao'&&o.status==='active');if(last)print(last);return}
+   if(e.key==='F8'){e.preventDefault();setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-payment')?.focus());return}
   }else{
    if(e.key==='F4'){e.preventDefault();searchRef.current?.focus();return}
    if(e.key==='F6'){e.preventDefault();document.getElementById('delivery-street')?.focus();return}
@@ -89,8 +92,9 @@ function App(){
   if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();void saveSale()}
  };
  window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)
- },[saleOpen,saleChannel,page,form,cart,editing,staff?.active,busy,newProduct,newCustomer,counterTendered]);
+ },[saleOpen,saleChannel,page,form,cart,editing,staff?.active,busy,newProduct,newCustomer,counterTendered,counterPaymentOpen,orders]);
  useEffect(()=>{if(!saleOpen)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=previous}},[saleOpen]);
+ useEffect(()=>{if(!saleOpen||saleChannel!=='balcao')return;setCounterClock(new Date());const timer=window.setInterval(()=>setCounterClock(new Date()),1000);return()=>window.clearInterval(timer)},[saleOpen,saleChannel]);
  useEffect(()=>{
   if(!saleOpen||saleChannel!=='balcao'||!editing)return;
   if(counterCustomerDetailsRef.current)counterCustomerDetailsRef.current.open=Boolean(editing.customer_name||editing.customer_phone||editing.note);
@@ -127,7 +131,7 @@ function App(){
  }
  async function requestAccess(){if(!email.trim()||password.length<8){setNotice('Informe e-mail e senha com pelo menos 8 caracteres.');return}setBusy(true);const {error}=await sb.auth.signUp({email:email.trim(),password});setNotice(error?error.message:'Solicitação criada. Confirme o e-mail, se solicitado; um administrador precisará autorizar o perfil.');setBusy(false)}
  async function logout(){await sb.auth.signOut();setStaff(null);setUser(null);setPage('dashboard')}
- function openSale(channel:'balcao'|'delivery'){setSaleChannel(channel);setEditing(null);setForm({...initialForm});setCart([]);setProductSearch('');setCustomerSearch('');setCustomerChoiceIndex(-1);setCounterQty('1');setCounterTendered('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(null);setNotice('');setSaleOpen(true)}
+ function openSale(channel:'balcao'|'delivery'){setSaleChannel(channel);setEditing(null);setForm({...initialForm});setCart([]);setProductSearch('');setCustomerSearch('');setCustomerChoiceIndex(-1);setCounterQty('1');setCounterTendered('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(null);setCounterPaymentOpen(false);setNotice('');setSaleOpen(true)}
  function startFreshCounter(){
   if(busy)return;
   if((editing||cart.length||form.customer_name.trim()||form.customer_phone.trim()||form.note.trim()||number(form.discount)>0)&&!window.confirm('Descartar a venda atual e iniciar outra venda de balcão?'))return;
@@ -142,7 +146,7 @@ function App(){
  async function editSale(o:Order){setLoading(true);try{const {data,error}=await sb.from('order_items').select('*').eq('order_id',o.id);if(error)throw error;
   const lines:Line[]=[];for(const item of data||[]){const p=products.find(v=>v.id===item.product_id);if(p)lines.push({product:p,quantity:Number(item.quantity),unit_price:Number(item.unit_price)})}
   if(lines.length!==(data||[]).length)throw Error('Produto de algum item não está disponível no cadastro.');
-  setSaleChannel(o.channel);setEditing(o);setForm({customer_id:o.customer_id||'',customer_name:o.customer_name||'',customer_phone:o.customer_phone||'',street:o.street||'',neighborhood:o.neighborhood||'',house_number:o.house_number||'',complement:o.complement||'',note:o.note||'',delivery_fee:String(o.delivery_fee),discount:String(o.discount),payment_method:o.payment_method,paid:o.payment_status==='paid',collect_on_delivery:o.collect_on_delivery||false,delivery_collection_amount:o.delivery_collection_amount==null?'':String(o.delivery_collection_amount)});setCart(lines);setProductSearch('');setCustomerSearch('');setCounterQty('1');setCounterTendered('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(lines.length?lines[lines.length-1].product.id:null);setSaleOpen(true)
+  setSaleChannel(o.channel);setEditing(o);setForm({customer_id:o.customer_id||'',customer_name:o.customer_name||'',customer_phone:o.customer_phone||'',street:o.street||'',neighborhood:o.neighborhood||'',house_number:o.house_number||'',complement:o.complement||'',note:o.note||'',delivery_fee:String(o.delivery_fee),discount:String(o.discount),payment_method:o.payment_method,paid:o.payment_status==='paid',collect_on_delivery:o.collect_on_delivery||false,delivery_collection_amount:o.delivery_collection_amount==null?'':String(o.delivery_collection_amount)});setCart(lines);setProductSearch('');setCustomerSearch('');setCounterQty('1');setCounterTendered('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(lines.length?lines[lines.length-1].product.id:null);setCounterPaymentOpen(false);setSaleOpen(true)
  }catch(err){showError(err)}finally{setLoading(false)}}
  function addProduct(p:Product){setCart(lines=>{const existing=lines.find(x=>x.product.id===p.id);return existing?lines.map(x=>x.product.id===p.id?{...x,quantity:x.quantity+1}:x):[...lines,{product:p,quantity:1,unit_price:Number(p.sale_price)}]});setProductSearch('');searchRef.current?.focus()}
  function changeQty(id:string,qty:number){setCart(lines=>lines.map(x=>x.product.id===id?{...x,quantity:qty}:x).filter(x=>x.quantity>0))}
