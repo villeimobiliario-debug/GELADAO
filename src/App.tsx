@@ -91,6 +91,10 @@ function App(){
  window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)
  },[saleOpen,saleChannel,page,form,cart,editing,staff?.active,busy,newProduct,newCustomer,counterTendered]);
  useEffect(()=>{if(!saleOpen)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=previous}},[saleOpen]);
+ useEffect(()=>{
+  if(!saleOpen||saleChannel!=='balcao'||!editing)return;
+  if(counterCustomerDetailsRef.current)counterCustomerDetailsRef.current.open=Boolean(editing.customer_name||editing.customer_phone||editing.note);
+ },[saleOpen,saleChannel,editing?.id]);
  async function login(e:FormEvent){e.preventDefault();setBusy(true);setNotice('');const{error}=await sb.auth.signInWithPassword({email:email.trim(),password});if(error)showError(error.message);setBusy(false)}
  async function requestPasswordReset(e:FormEvent){
   e.preventDefault();
@@ -310,7 +314,7 @@ function App(){
        <label>Total do item<input readOnly value={counterPreview?cash(Number(counterPreview.sale_price)*counterPreviewQty):cash(0)} tabIndex={-1}/></label>
       </div>
       <button type="button" className="counter-add" disabled={!counterSelected} onClick={()=>{if(counterSelected)addCounterProduct(counterSelected)}}>+ Adicionar produto <span>Enter</span></button>
-      <details className="counter-more" ref={counterCustomerDetailsRef} defaultOpen={Boolean(editing?.customer_name||editing?.customer_phone||editing?.note)}>
+      <details className="counter-more" ref={counterCustomerDetailsRef}>
        <summary>Cliente e observações <span>opcional</span></summary>
        <div className="counter-more-body">
         <label>Localizar cliente<input ref={counterCustomerRef} autoComplete="off" placeholder="Nome, telefone ou dois últimos dígitos" value={customerSearch} onChange={e=>setCustomerSearch(e.target.value)}
