@@ -378,19 +378,18 @@ function App(){
      </section>
      <section className="counter-ticket">
       <div className="counter-ticket-scroll">
-       <table className="counter-ticket-table">
-        <thead><tr><th>Item</th><th>Código</th><th>Descrição</th><th>Qtd</th><th>Preço</th><th>Total</th><th aria-label="Remover item"/></tr></thead>
-        <tbody>{cart.map((line,i)=><tr key={line.product.id}>
-         <td className="counter-row-number">{i+1}</td>
-         <td className="counter-item-code">{line.product.barcode||line.product.sku||'—'}</td>
-         <td className="counter-item-name" title={line.product.name}>{line.product.name}</td>
-         <td><div className="counter-item-qty"><button type="button" aria-label={'Diminuir '+line.product.name} onClick={()=>changeQty(line.product.id,line.quantity-1)}>−</button>
-          <input type="number" min="1" step="1" aria-label={'Quantidade de '+line.product.name} value={line.quantity} onChange={e=>changeQty(line.product.id,Number(e.target.value))}/>
-          <button type="button" aria-label={'Aumentar '+line.product.name} onClick={()=>changeQty(line.product.id,line.quantity+1)}>+</button></div></td>
-         <td>{admin?<input className="counter-admin-price" aria-label={'Preço unitário de '+line.product.name} type="number" min="0" step=".01" value={line.unit_price}
-           onChange={e=>setCart(lines=>lines.map(x=>x.product.id===line.product.id?{...x,unit_price:Number(e.target.value)}:x))}/>:cash(Number(line.unit_price))}</td>
-         <td className="counter-item-total">{cash(line.quantity*line.unit_price)}</td>
-         <td><button type="button" className="counter-remove" title={'Remover '+line.product.name} aria-label={'Remover '+line.product.name} onClick={()=>changeQty(line.product.id,0)}>×</button></td>
+       <table className="counter-ticket-table counter-summary-table">
+        <colgroup><col className="counter-col-qty"/><col className="counter-col-product"/><col className="counter-col-unit"/><col className="counter-col-total"/></colgroup>
+        <thead><tr><th scope="col">Quantidade</th><th scope="col">Produto</th><th scope="col">Valor unitário</th><th scope="col">Valor total</th></tr></thead>
+        <tbody>{cart.map(line=><tr key={line.product.id}>
+         <td className="counter-summary-quantity"><strong>{line.quantity}×</strong></td>
+         <td className="counter-summary-product">
+          <div><span title={line.product.name}>{line.product.name}</span>
+           <button type="button" className="counter-summary-remove" title={'Remover '+line.product.name} aria-label={'Remover '+line.product.name} onClick={()=>changeQty(line.product.id,0)}>×</button>
+          </div>
+         </td>
+         <td className="counter-summary-unit">{cash(Number(line.unit_price))}</td>
+         <td className="counter-summary-total">{cash(line.quantity*line.unit_price)}</td>
         </tr>)}</tbody>
        </table>
        {!cart.length&&<div className="counter-empty"><span>▤</span><h3>Nenhum item lançado</h3><p>Pesquise um produto ou use o leitor de código de barras para começar.</p></div>}
