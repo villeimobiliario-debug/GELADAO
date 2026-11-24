@@ -1894,3 +1894,130 @@ thead th{background:#fbfcfe}
   border-color:#2d72dc;
   box-shadow:0 0 0 4px rgba(45,114,220,.11);
 }
+
+/* GELADAO BALCAO - CLEAN FOUR COLUMN TICKET */
+.counter-ticket .counter-summary-table{
+  width:100%;
+  min-width:510px;
+  table-layout:fixed;
+  border-collapse:collapse;
+}
+.counter-ticket .counter-summary-table col.counter-col-qty{width:16%}
+.counter-ticket .counter-summary-table col.counter-col-product{width:42%}
+.counter-ticket .counter-summary-table col.counter-col-unit{width:20%}
+.counter-ticket .counter-summary-table col.counter-col-total{width:22%}
+.counter-ticket .counter-summary-table th{
+  padding:17px 13px;
+  color:#334e74;
+  background:#eaf1fa;
+  border-bottom:1px solid #d6e3f3;
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:0;
+  line-height:1.2;
+  text-align:left;
+  white-space:normal;
+}
+.counter-ticket .counter-summary-table th:first-child{
+  width:auto;
+  text-align:center;
+}
+.counter-ticket .counter-summary-table th:nth-child(3),
+.counter-ticket .counter-summary-table th:nth-child(4){text-align:right}
+.counter-ticket .counter-summary-table td{
+  padding:17px 13px;
+  color:#1c3658;
+  border-bottom:1px solid #e2eaf5;
+  vertical-align:middle;
+  line-height:1.45;
+  font-size:15px;
+  background:#fff;
+}
+.counter-ticket .counter-summary-table tbody tr:hover td{
+  background:#f7faff;
+}
+.counter-ticket .counter-summary-table td.counter-summary-quantity{
+  text-align:center;
+  width:auto;
+}
+.counter-summary-quantity strong{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:49px;
+  min-height:37px;
+  padding:4px 9px;
+  border:1px solid #cee1fc;
+  background:#e9f2ff;
+  border-radius:9px;
+  color:#1553b1;
+  font-size:18px;
+  font-weight:840;
+  white-space:nowrap;
+}
+.counter-summary-product>div{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+.counter-summary-product span{
+  flex:1;
+  min-width:0;
+  font-size:16px;
+  font-weight:760;
+  line-height:1.4;
+  overflow-wrap:anywhere;
+  color:#142f57;
+}
+.counter-summary-remove{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:none;
+  min-width:28px;
+  height:28px;
+  padding:0;
+  background:transparent;
+  border:1px solid transparent;
+  border-radius:7px;
+  color:#8ba1bf;
+  font-size:19px;
+  opacity:.65;
+  cursor:pointer;
+}
+.counter-summary-remove:hover,
+.counter-summary-remove:focus-visible{
+  background:#fff1f1;
+  border-color:#f4caca;
+  color:#bd3f4f;
+  opacity:1;
+}
+.counter-ticket .counter-summary-table td.counter-summary-unit{
+  font-size:15px;
+  font-weight:710;
+  color:#385473;
+  text-align:right;
+  white-space:nowrap;
+}
+.counter-ticket .counter-summary-table td.counter-summary-total{
+  color:#103b83;
+  font-size:17px;
+  font-weight:850;
+  text-align:right;
+  white-space:nowrap;
+}
+@media(max-width:1200px){
+  .counter-ticket .counter-summary-table{min-width:470px}
+  .counter-ticket .counter-summary-table th{font-size:12px;padding:13px 9px}
+  .counter-ticket .counter-summary-table td{padding:13px 9px}
+  .counter-summary-product span{font-size:14px}
+  .counter-ticket .counter-summary-table td.counter-summary-unit{font-size:13.5px}
+  .counter-ticket .counter-summary-table td.counter-summary-total{font-size:15px}
+  .counter-summary-quantity strong{font-size:16px;min-width:40px}
+}
+@media(max-width:700px){
+  .counter-ticket .counter-summary-table{min-width:475px}
+  .counter-ticket .counter-summary-table td{padding:13px 8px}
+  .counter-summary-remove{min-width:27px}
+}
