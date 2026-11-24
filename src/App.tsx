@@ -34,7 +34,7 @@ function App(){
  const [period,setPeriod]=useState('hoje'),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [query,setQuery]=useState(''),[customerQuery,setCustomerQuery]=useState(''),[orderQuery,setOrderQuery]=useState('');
  const [saleOpen,setSaleOpen]=useState(false),[saleChannel,setSaleChannel]=useState<'balcao'|'delivery'>('delivery'),[editing,setEditing]=useState<Order|null>(null);
- const [counterQty,setCounterQty]=useState('1'),[counterTendered,setCounterTendered]=useState(''),[counterError,setCounterError]=useState(''),[counterChoiceIndex,setCounterChoiceIndex]=useState(-1),[counterLastProductId,setCounterLastProductId]=useState<string|null>(null),[counterPaymentOpen,setCounterPaymentOpen]=useState(false),[counterClock,setCounterClock]=useState(()=>new Date());
+ const [counterQty,setCounterQty]=useState('1'),[counterTendered,setCounterTendered]=useState(''),[counterError,setCounterError]=useState(''),[counterChoiceIndex,setCounterChoiceIndex]=useState(-1),[counterLastProductId,setCounterLastProductId]=useState<string|null>(null),[counterPendingProductId,setCounterPendingProductId]=useState<string|null>(null),[counterPaymentOpen,setCounterPaymentOpen]=useState(false),[counterClock,setCounterClock]=useState(()=>new Date());
  const [form,setForm]=useState<Form>(initialForm),[cart,setCart]=useState<Line[]>([]),[productSearch,setProductSearch]=useState(''),[customerSearch,setCustomerSearch]=useState(''),[customerChoiceIndex,setCustomerChoiceIndex]=useState(-1);
  const [newProduct,setNewProduct]=useState(false),[editProduct,setEditProduct]=useState<Product|null>(null);
  const [productForm,setProductForm]=useState({name:'',category_id:'',barcode:'',sku:'',unit:'UN',purchase_price:'0',sale_price:'0',track_stock:false,stock_qty:'0',min_stock:'0',active:true});
@@ -42,7 +42,7 @@ function App(){
  const [custForm,setCustForm]=useState({name:'',phone:'',street:'',neighborhood:'',house_number:'',complement:''});
  const [catName,setCatName]=useState('');
  const searchRef=useRef<HTMLInputElement>(null);
- const counterSearchRef=useRef<HTMLInputElement>(null),counterCustomerRef=useRef<HTMLInputElement>(null),counterCustomerDetailsRef=useRef<HTMLDetailsElement>(null);
+ const counterSearchRef=useRef<HTMLInputElement>(null),counterQtyRef=useRef<HTMLInputElement>(null),counterCustomerRef=useRef<HTMLInputElement>(null),counterCustomerDetailsRef=useRef<HTMLDetailsElement>(null);
  const admin=staff?.role==='admin';
  const showError=(error:unknown)=>setNotice(error instanceof Error?error.message:String(error));
  const updateForm=(key:keyof Form,value:string|boolean)=>setForm(f=>({...f,[key]:value}));
@@ -147,7 +147,7 @@ function App(){
  }
  async function requestAccess(){if(!email.trim()||password.length<8){setNotice('Informe e-mail e senha com pelo menos 8 caracteres.');return}setBusy(true);const {error}=await sb.auth.signUp({email:email.trim(),password});setNotice(error?error.message:'Solicitação criada. Confirme o e-mail, se solicitado; um administrador precisará autorizar o perfil.');setBusy(false)}
  async function logout(){await sb.auth.signOut();setStaff(null);setUser(null);setPage('dashboard')}
- function openSale(channel:'balcao'|'delivery'){setSaleChannel(channel);setEditing(null);setForm({...initialForm});setCart([]);setProductSearch('');setCustomerSearch('');setCustomerChoiceIndex(-1);setCounterQty('1');setCounterTendered('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(null);setCounterPaymentOpen(false);setNotice('');setSaleOpen(true)}
+ function openSale(channel:'balcao'|'delivery'){setSaleChannel(channel);setEditing(null);setForm({...initialForm});setCart([]);setProductSearch('');setCustomerSearch('');setCustomerChoiceIndex(-1);setCounterQty('1');setCounterTendered('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(null);setCounterPendingProductId(null);setCounterPaymentOpen(false);setNotice('');setSaleOpen(true)}
  function startFreshCounter(){
   if(busy)return;
   if((editing||cart.length||form.customer_name.trim()||form.customer_phone.trim()||form.note.trim()||number(form.discount)>0)&&!window.confirm('Descartar a venda atual e iniciar outra venda de balcão?'))return;
@@ -162,15 +162,32 @@ function App(){
  async function editSale(o:Order){setLoading(true);try{const {data,error}=await sb.from('order_items').select('*').eq('order_id',o.id);if(error)throw error;
   const lines:Line[]=[];for(const item of data||[]){const p=products.find(v=>v.id===item.product_id);if(p)lines.push({product:p,quantity:Number(item.quantity),unit_price:Number(item.unit_price)})}
   if(lines.length!==(data||[]).length)throw Error('Produto de algum item não está disponível no cadastro.');
-  setSaleChannel(o.channel);setEditing(o);setForm({customer_id:o.customer_id||'',customer_name:o.customer_name||'',customer_phone:o.customer_phone||'',street:o.street||'',neighborhood:o.neighborhood||'',house_number:o.house_number||'',complement:o.complement||'',note:o.note||'',delivery_fee:String(o.delivery_fee),discount:String(o.discount),payment_method:o.payment_method,paid:o.payment_status==='paid',collect_on_delivery:o.collect_on_delivery||false,delivery_collection_amount:o.delivery_collection_amount==null?'':String(o.delivery_collection_amount)});setCart(lines);setProductSearch('');setCustomerSearch('');setCounterQty('1');setCounterTendered('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(lines.length?lines[lines.length-1].product.id:null);setCounterPaymentOpen(false);setSaleOpen(true)
+  setSaleChannel(o.channel);setEditing(o);setForm({customer_id:o.customer_id||'',customer_name:o.customer_name||'',customer_phone:o.customer_phone||'',street:o.street||'',neighborhood:o.neighborhood||'',house_number:o.house_number||'',complement:o.complement||'',note:o.note||'',delivery_fee:String(o.delivery_fee),discount:String(o.discount),payment_method:o.payment_method,paid:o.payment_status==='paid',collect_on_delivery:o.collect_on_delivery||false,delivery_collection_amount:o.delivery_collection_amount==null?'':String(o.delivery_collection_amount)});setCart(lines);setProductSearch('');setCustomerSearch('');setCounterQty('1');setCounterTendered('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(lines.length?lines[lines.length-1].product.id:null);setCounterPendingProductId(null);setCounterPaymentOpen(false);setSaleOpen(true)
  }catch(err){showError(err)}finally{setLoading(false)}}
  function addProduct(p:Product){setCart(lines=>{const existing=lines.find(x=>x.product.id===p.id);return existing?lines.map(x=>x.product.id===p.id?{...x,quantity:x.quantity+1}:x):[...lines,{product:p,quantity:1,unit_price:Number(p.sale_price)}]});setProductSearch('');searchRef.current?.focus()}
  function changeQty(id:string,qty:number){setCart(lines=>lines.map(x=>x.product.id===id?{...x,quantity:qty}:x).filter(x=>x.quantity>0))}
+ function prepareCounterQuantity(p:Product){
+  setCounterPendingProductId(p.id);
+  setCounterLastProductId(p.id);
+  setCounterQty('');
+  setCounterChoiceIndex(-1);
+  setCounterError('');
+  window.requestAnimationFrame(()=>counterQtyRef.current?.focus());
+ }
  function addCounterProduct(p:Product){
-  const qty=Number(counterQty);
-  if(!Number.isSafeInteger(qty)||qty<1||qty>100000){setCounterError('Informe uma quantidade inteira entre 1 e 100.000.');return}
+  const qty=counterQty.trim()===''?1:Number(counterQty);
+  if(!Number.isSafeInteger(qty)||qty<1||qty>100000){
+   setCounterError('Informe uma quantidade inteira entre 1 e 100.000.');
+   window.requestAnimationFrame(()=>counterQtyRef.current?.focus());
+   return;
+  }
   setCart(lines=>{const existing=lines.find(x=>x.product.id===p.id);return existing?lines.map(x=>x.product.id===p.id?{...x,quantity:x.quantity+qty}:x):[...lines,{product:p,quantity:qty,unit_price:Number(p.sale_price)}]});
-  setCounterLastProductId(p.id);setProductSearch('');setCounterQty('1');setCounterChoiceIndex(-1);setCounterError('');
+  setCounterLastProductId(p.id);
+  setCounterPendingProductId(null);
+  setProductSearch('');
+  setCounterQty('1');
+  setCounterChoiceIndex(-1);
+  setCounterError('');
   window.requestAnimationFrame(()=>counterSearchRef.current?.focus());
  }
  const subtotal=cart.reduce((s,x)=>s+x.quantity*x.unit_price,0),total=Math.max(0,subtotal+number(form.delivery_fee)-number(form.discount));
@@ -235,7 +252,8 @@ function App(){
  const counterQuery=productSearch.trim().toLowerCase();
  const counterMatches=counterQuery?products.filter(p=>p.active&&(p.name.toLowerCase().includes(counterQuery)||String(p.barcode||'').toLowerCase().includes(counterQuery)||String(p.sku||'').toLowerCase().includes(counterQuery))).slice(0,8):[];
  const counterSelected=counterChoiceIndex>=0?counterMatches[counterChoiceIndex]:counterMatches.find(p=>p.barcode===productSearch.trim()||p.sku===productSearch.trim())||counterMatches[0];
- const counterPreview=counterSelected||products.find(p=>p.id===counterLastProductId);
+ const counterPendingProduct=counterPendingProductId?products.find(p=>p.id===counterPendingProductId&&p.active):undefined;
+ const counterPreview=counterPendingProduct||counterSelected||products.find(p=>p.id===counterLastProductId);
  const counterPreviewQty=Math.max(1,Number(counterQty)||1);
  const counterLastOrder=activeOrders.find(o=>o.channel==='balcao');
  const customerSearchTerm=customerSearch.trim().toLowerCase();
@@ -320,30 +338,31 @@ function App(){
        
        <input id="counter-search" autoFocus ref={counterSearchRef} autoComplete="off" placeholder="Código ou nome do produto"
         value={productSearch}
-        onChange={e=>{setProductSearch(e.target.value);setCounterChoiceIndex(-1);setCounterError('')}}
+        onChange={e=>{setProductSearch(e.target.value);setCounterPendingProductId(null);setCounterChoiceIndex(-1);setCounterError('')}}
         onKeyDown={e=>{
          if(e.key==='ArrowDown'&&counterMatches.length){e.preventDefault();setCounterChoiceIndex(i=>Math.min(i+1,counterMatches.length-1));return}
          if(e.key==='ArrowUp'&&counterMatches.length){e.preventDefault();setCounterChoiceIndex(i=>Math.max(0,i-1));return}
-         if(e.key==='Enter'){e.preventDefault();e.stopPropagation();if(counterSelected)addCounterProduct(counterSelected);else setCounterError('Produto não encontrado. Confira o código ou a descrição.')}
+         if(e.key==='Enter'){e.preventDefault();e.stopPropagation();if(counterSelected)prepareCounterQuantity(counterSelected);else setCounterError('Produto não encontrado. Confira o código ou a descrição.')}
         }}/>
        <span aria-hidden="true" className="counter-barcode-icon">▥</span>
       </div>
-      {productSearch&&<div className="counter-suggestions" role="listbox" aria-label="Produtos encontrados">
+      {counterPendingProduct&&<p className="counter-qty-prompt" role="status">Produto selecionado: <b>{counterPendingProduct.name}</b>. Informe a quantidade e pressione Enter. Campo vazio = 1 unidade.</p>}
+      {productSearch&&!counterPendingProduct&&<div className="counter-suggestions" role="listbox" aria-label="Produtos encontrados">
        {counterMatches.map((p,i)=><button type="button" key={p.id} className={p.id===counterSelected?.id?'selected':''}
-        onClick={()=>addCounterProduct(p)} role="option" aria-selected={p.id===counterSelected?.id}>
+        onClick={()=>prepareCounterQuantity(p)} role="option" aria-selected={p.id===counterSelected?.id}>
         <span><b>{p.name}</b><small>{p.barcode||p.sku||p.unit}</small></span><strong>{cash(Number(p.sale_price))}</strong>
        </button>)}
        {!counterMatches.length&&<p>Nenhum produto encontrado.</p>}
       </div>}
       <div className="counter-entry-grid">
        <label htmlFor="counter-qty">Quantidade
-        <input id="counter-qty" type="number" min="1" max="100000" step="1" value={counterQty} onChange={e=>setCounterQty(e.target.value)}
-         onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();if(counterSelected)addCounterProduct(counterSelected);else counterSearchRef.current?.focus()}}}/>
+        <input id="counter-qty" ref={counterQtyRef} type="number" min="1" max="100000" step="1" placeholder="1" value={counterQty} onChange={e=>setCounterQty(e.target.value)}
+         onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();if(counterPendingProduct)addCounterProduct(counterPendingProduct);else if(counterSelected)prepareCounterQuantity(counterSelected);else counterSearchRef.current?.focus()}}}/>
        </label>
        <label>Preço unitário<input readOnly value={counterPreview?cash(Number(counterPreview.sale_price)):cash(0)} tabIndex={-1}/></label>
        <label>Total do item<input readOnly value={counterPreview?cash(Number(counterPreview.sale_price)*counterPreviewQty):cash(0)} tabIndex={-1}/></label>
       </div>
-      <button type="button" className="counter-add" disabled={!counterSelected} onClick={()=>{if(counterSelected)addCounterProduct(counterSelected)}}>+ Adicionar produto <span>Enter</span></button>
+      <button type="button" className="counter-add" disabled={!counterPendingProduct&&!counterSelected} onClick={()=>{if(counterPendingProduct)addCounterProduct(counterPendingProduct);else if(counterSelected)prepareCounterQuantity(counterSelected)}}>{counterPendingProduct?'+ Adicionar ao resumo':'Selecionar produto'} <span>Enter</span></button>
       <details className="counter-more" ref={counterCustomerDetailsRef}>
        <summary>Cliente e observações <span>opcional</span></summary>
        <div className="counter-more-body">
@@ -355,7 +374,7 @@ function App(){
        </div>
       </details>
       {(counterError||notice)&&<p className="counter-error" role="alert">{counterError||notice}</p>}
-      <p className="counter-help">O código de barras adiciona o produto automaticamente ao pressionar Enter. Ao repetir a leitura, a quantidade é somada.</p>
+      <p className="counter-help">Código ou produto → Enter → quantidade → Enter. O item aparece na tabela lateral e o foco volta ao código.</p>
      </section>
      <section className="counter-ticket">
       <div className="counter-ticket-scroll">
