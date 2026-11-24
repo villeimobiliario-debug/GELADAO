@@ -32,6 +32,53 @@ function paymentCents(input:string):number|null{
  const result=Math.round(Number(v)*100);
  return Number.isSafeInteger(result)&&result>=0&&result<=99999999?result:null;
 }
+
+function CreditCustomerPicker({customers,selectedId,onSelect,balances}:{
+ customers:Customer[];selectedId:string|null;onSelect:(id:string|null)=>void;balances:Record<string,number>
+}){
+ const [search,setSearch]=useState('');
+ const [highlight,setHighlight]=useState(0);
+ const ref=useRef<HTMLInputElement>(null);
+ useEffect(()=>{if(!selectedId)ref.current?.focus()},[selectedId]);
+ const selected=customers.find(c=>c.id===selectedId);
+ const term=search.trim().toLocaleLowerCase('pt-BR');
+ const digits=search.replace(/\D/g,'');
+ const matches=term?customers.filter(c=>c.active&&(
+  (c.name||'').toLocaleLowerCase('pt-BR').includes(term)||
+  String(c.phone||'').replace(/\D/g,'').includes(digits.length>=2?digits:'__not_found__')
+ )).slice(0,8):[];
+ const choose=(c:Customer)=>{onSelect(c.id);setSearch('');setHighlight(0)};
+ return <div className="counter-credit-picker">
+  {selected?<div className="counter-credit-selected">
+   <div><small>CLIENTE CADASTRADO</small><strong>{selected.name||'Sem nome'} · {selected.phone||'Sem telefone'}</strong>
+    <span>Saldo anterior: {cash(balances[selected.id]||0)}</span></div>
+   <button type="button" onClick={()=>onSelect(null)}>Trocar cliente</button>
+  </div>:<>
+   <label htmlFor="counter-credit-search">Buscar cliente cadastrado · nome ou telefone</label>
+   <input ref={ref} id="counter-credit-search" type="search" autoComplete="off"
+    placeholder="Digite nome ou telefone, setas e Enter"
+    value={search} onChange={e=>{setSearch(e.target.value);setHighlight(0)}}
+    onKeyDown={e=>{
+     if(e.key==='ArrowDown'&&matches.length){e.preventDefault();e.stopPropagation();setHighlight(i=>Math.min(i+1,matches.length-1));return}
+     if(e.key==='ArrowUp'&&matches.length){e.preventDefault();e.stopPropagation();setHighlight(i=>Math.max(i-1,0));return}
+     if(e.key==='Enter'){
+      e.preventDefault();e.stopPropagation();
+      if(matches[highlight])choose(matches[highlight]);
+     }
+    }}/>
+   {term&&<div className="counter-credit-matches" role="listbox" aria-label="Clientes cadastrados">
+    {matches.map((c,i)=><button key={c.id} type="button" role="option"
+     aria-selected={i===highlight} className={i===highlight?'selected':''}
+     onClick={()=>choose(c)}>
+     <span><strong>{c.name||'Sem nome'}</strong><small>{c.phone||'Sem telefone'}</small></span>
+     <span>{cash(balances[c.id]||0)} em aberto</span>
+    </button>)}
+    {!matches.length&&<p>Nenhum cliente encontrado. Cadastre-o primeiro na aba Clientes.</p>}
+   </div>}
+  </>}
+ </div>;
+}
+
 function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfirm,busy,externalError}:{
  total:number;discount:string;onDiscountChange:(value:string)=>void;onClose:()=>void;
  onConfirm:(lines:CounterPayment[])=>void;busy:boolean;externalError:string;
