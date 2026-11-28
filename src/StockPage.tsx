@@ -7,6 +7,8 @@ type StockProduct={
  id:string;name:string;barcode:string|null;sku:string|null;unit:string;
  category_id:number|null;purchase_price:number;sale_price:number;
  track_stock:boolean;stock_qty:number;min_stock:number;active:boolean;
+ fardo_enabled:boolean;units_per_fardo:number;fardo_sale_price:number;fardo_barcode:string|null;
+ closed_fardos:number;loose_units:number;
 };
 type StockCategory={id:number;name:string};
 type StockOperator={user_id:string;display_name:string};
@@ -14,6 +16,8 @@ type StockMovement={
  id:number;product_id:string;order_id:string|null;qty_change:number;reason:string;
  actor:string|null;created_at:string;note:string|null;qty_before:number|null;qty_after:number|null;
  entry_unit_cost:number|null;entry_total_cost:number|null;avg_cost_before:number|null;avg_cost_after:number|null;
+ fardo_entry_qty:number|null;units_per_fardo_snapshot:number|null;
+ closed_fardos_before:number|null;closed_fardos_after:number|null;loose_units_before:number|null;loose_units_after:number|null;fardos_opened:number|null;
 };
 type Action='entrada'|'saida'|'inventario';
 type StockFilter='todos'|'baixo'|'esgotado'|'normal'|'sem_controle';
@@ -52,10 +56,18 @@ function StockActionModal({products,initialProduct,initialAction,busy,onClose,on
  const [productId,setProductId]=useState<string|null>(initialProduct);
  const [search,setSearch]=useState('');
  const [highlight,setHighlight]=useState(0);
- const [value,setValue]=useState('');
+ const [value,setValue]=useState(()=>{
+  const p=products.find(v=>v.id===initialProduct);
+  return p?.fardo_enabled&&initialAction==='inventario'?String(p.closed_fardos):'';
+ });
+ const [exitFormat,setExitFormat]=useState<'unidade'|'fardo'>('fardo');
+ const [looseCount,setLooseCount]=useState(()=>{
+  const p=products.find(v=>v.id===initialProduct);
+  return p?.fardo_enabled&&initialAction==='inventario'?String(p.loose_units):'';
+ });
  const [entryPrice,setEntryPrice]=useState(()=>{
   const product=products.find(p=>p.id===initialProduct);
-  return product&&Number(product.purchase_price)>0?Number(product.purchase_price).toFixed(2).replace('.',','):'';
+  return product&&Number(product.purchase_price)>0?(Number(product.purchase_price)*(product.fardo_enabled?product.units_per_fardo:1)).toFixed(2).replace('.',','):'';
  });
  const [note,setNote]=useState('');
  const [saving,setSaving]=useState(false);
@@ -63,6 +75,7 @@ function StockActionModal({products,initialProduct,initialAction,busy,onClose,on
  const requestId=useRef(crypto.randomUUID());
  const searchRef=useRef<HTMLInputElement>(null);
  const qtyRef=useRef<HTMLInputElement>(null);
+ const looseRef=useRef<HTMLInputElement>(null);
  const priceRef=useRef<HTMLInputElement>(null);
  const noteRef=useRef<HTMLInputElement>(null);
  const formRef=useRef<HTMLFormElement>(null);
@@ -71,22 +84,34 @@ function StockActionModal({products,initialProduct,initialAction,busy,onClose,on
  const term=search.trim().toLocaleLowerCase('pt-BR');
  const matches=term?tracked.filter(p=>[p.name,p.barcode,p.sku].some(x=>String(x||'').toLocaleLowerCase('pt-BR').includes(term))).slice(0,8):[];
  const parsed=parseQty(value);
+ const parsedLoose=parseQty(looseCount);
  const parsedPrice=parseCost(entryPrice);
+ const isPack=Boolean(selected?.fardo_enabled);
+ const factor=Number(selected?.units_per_fardo||1);
  const entryTotal=action==='entrada'&&parsed!==null&&parsedPrice!==null?Math.round((parsed*parsedPrice+Number.EPSILON)*100)/100:null;
- const averagePreview=action==='entrada'&&selected&&parsed!==null&&parsed>0&&parsedPrice!==null
-  ?Number(((Number(selected.stock_qty)*Number(selected.purchase_price)+parsed*parsedPrice)/(Number(selected.stock_qty)+parsed)).toFixed(4)):null;
- const estimate=selected&&parsed!==null?(action==='entrada'?Number(selected.stock_qty)+parsed:action==='saida'?Number(selected.stock_qty)-parsed:parsed):null;
+ const entryUnits=parsed!==null?parsed*(isPack?factor:1):null;
+ const averagePreview=action==='entrada'&&selected&&entryUnits!==null&&entryUnits>0&&entryTotal!==null
+  ?Number(((Number(selected.stock_qty)*Number(selected.purchase_price)+entryTotal)/(Number(selected.stock_qty)+entryUnits)).toFixed(4)):null;
+ const estimate=selected&&parsed!==null?
+  (action==='entrada'?Number(selected.stock_qty)+parsed*(isPack?factor:1):
+   action==='saida'?Number(selected.stock_qty)-parsed*(isPack&&exitFormat==='fardo'?factor:1):
+   isPack?(parsedLoose===null?null:parsed*factor+parsedLoose):parsed):null;
  useEffect(()=>{if(initialProduct)qtyRef.current?.focus();else searchRef.current?.focus()},[initialProduct]);
  const resetRequest=()=>{requestId.current=crypto.randomUUID();setError('')};
  const pick=(p:StockProduct)=>{
-  setProductId(p.id);setSearch('');setValue('');setNote('');
-  setEntryPrice(Number(p.purchase_price)>0?Number(p.purchase_price).toFixed(2).replace('.',','):'');
-  setHighlight(0);resetRequest();window.requestAnimationFrame(()=>qtyRef.current?.focus())
+  setProductId(p.id);setSearch('');setValue(p.fardo_enabled&&action==='inventario'?String(p.closed_fardos):'');
+  setLooseCount(p.fardo_enabled&&action==='inventario'?String(p.loose_units):'');
+  setExitFormat('fardo');
+  setEntryPrice(Number(p.purchase_price)>0?(Number(p.purchase_price)*(p.fardo_enabled?p.units_per_fardo:1)).toFixed(2).replace('.',','):'');
+  setNote('');setHighlight(0);resetRequest();window.requestAnimationFrame(()=>qtyRef.current?.focus())
  };
  const save=async(e:FormEvent)=>{
   e.preventDefault();if(saving||busy)return;
   if(!selected){setError('Selecione um produto com controle de estoque ativado.');return}
-  if(parsed===null||(action!=='inventario'&&parsed<=0)){setError('Informe uma quantidade válida (até 3 casas decimais).');qtyRef.current?.focus();return}
+  if(parsed===null||(action!=='inventario'&&parsed<=0)|| (isPack&&(parsed!==Math.trunc(parsed)||(action==='inventario'&&(parsedLoose===null||parsedLoose!==Math.trunc(parsedLoose)))))){
+   setError(isPack?'Informe quantidades inteiras de fardos e unidades avulsas.':'Informe uma quantidade válida.');
+   qtyRef.current?.focus();return;
+  }
   if(action==='entrada'&&parsedPrice===null){setError('Informe o preço de entrada por unidade (maior que zero, até 2 casas decimais).');priceRef.current?.focus();return}
   if((action==='saida'||action==='inventario')&&!note.trim()){setError('Informe o motivo da saída ou do ajuste.');noteRef.current?.focus();return}
   if(estimate===null||estimate<0||estimate>999999){setError('Estoque insuficiente ou acima do limite permitido.');return}
@@ -94,18 +119,31 @@ function StockActionModal({products,initialProduct,initialAction,busy,onClose,on
   setSaving(true);setError('');
   try{
    if(action==='entrada'){
-    const {error:entryError}=await sb.rpc('record_stock_entry',{
-     p_product_id:selected.id,p_quantity:parsed,p_unit_cost:parsedPrice,p_note:note.trim()||null,
-     p_request_id:requestId.current
-    });
-    if(entryError)throw entryError;
+    if(isPack){
+     const {error:entryError}=await sb.rpc('record_fardo_entry',{
+      p_product_id:selected.id,p_fardos:parsed,p_cost_per_fardo:parsedPrice,p_note:note.trim()||null,p_request_id:requestId.current
+     });
+     if(entryError)throw entryError;
+    }else{
+     const {error:entryError}=await sb.rpc('record_stock_entry',{
+      p_product_id:selected.id,p_quantity:parsed,p_unit_cost:parsedPrice,p_note:note.trim()||null,p_request_id:requestId.current
+     });
+     if(entryError)throw entryError;
+    }
     await onSuccess('Entrada registrada para '+selected.name+' · '+money(entryTotal||0)+' · custo médio atualizado.');
    }else{
-    const {error:movementError}=await sb.rpc('record_stock_movement',{
-     p_product_id:selected.id,p_action:action,p_quantity:parsed,p_note:note.trim()||null,
-     p_request_id:requestId.current
-    });
-    if(movementError)throw movementError;
+    if(isPack){
+     const {error:movementError}=await sb.rpc('record_fardo_movement',{
+      p_product_id:selected.id,p_action:action,p_format:exitFormat,p_quantity:parsed,
+      p_loose_units:action==='inventario'?parsedLoose:null,p_note:note.trim()||null,p_request_id:requestId.current
+     });
+     if(movementError)throw movementError;
+    }else{
+     const {error:movementError}=await sb.rpc('record_stock_movement',{
+      p_product_id:selected.id,p_action:action,p_quantity:parsed,p_note:note.trim()||null,p_request_id:requestId.current
+     });
+     if(movementError)throw movementError;
+    }
     await onSuccess(actionLabels[action]+' registrada para '+selected.name+'.');
    }
    onClose();
