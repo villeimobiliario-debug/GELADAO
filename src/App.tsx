@@ -912,18 +912,9 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
      <h2>{counterPreview?.name||'PRONTO PARA NOVA VENDA'}</h2>
     </div>
     <div className="counter-main">
-     <aside className="counter-logo-panel" aria-label="PDV GELADÃO">
-      <svg viewBox="0 0 154 126" role="img" aria-label="Carrinho de compras">
-       <path d="M14 20h15l16 69h81l14-52H40" fill="none" stroke="#1759b9" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round"/>
-       <path d="M55 56h69M62 73h58" stroke="#2e92ee" strokeWidth="6" strokeLinecap="round"/>
-       <circle cx="62" cy="108" r="10" fill="#133c88"/><circle cx="116" cy="108" r="10" fill="#133c88"/>
-       <path d="M8 49h20M4 69h28" stroke="#27a2eb" strokeWidth="7" strokeLinecap="round"/>
-      </svg>
-      <strong>PDV</strong><b>GELADÃO</b><i aria-hidden="true"/>
-     </aside>
      <section className="counter-terminal">
       
-      <label className="counter-search-label" htmlFor="counter-search">Código</label>
+      <label className="counter-search-label" htmlFor="counter-search">Buscar produto</label>
       <div className="counter-search-wrap">
        
        <input id="counter-search" autoFocus ref={counterSearchRef} autoComplete="off" placeholder="Código ou nome do produto"
@@ -978,7 +969,6 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
        </div>
       </details>
       {(counterError||notice)&&<p className="counter-error" role="alert">{counterError||notice}</p>}
-      <p className="counter-help">Código ou produto → Enter → quantidade → Enter. O item aparece na tabela lateral e o foco volta ao código.</p>
      </section>
      <section className="counter-ticket">
       <div className="counter-ticket-scroll">
@@ -992,7 +982,7 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
            <button type="button" className="counter-summary-remove"
              title={'Excluir '+line.product.name+' — '+(line.sale_format==='fardo'?'Fardo':'Unidade')}
              aria-label={'Excluir '+line.product.name+' — '+(line.sale_format==='fardo'?'Fardo':'Unidade')+' do resumo'}
-             onClick={()=>removeCounterLine(line)}>× Excluir</button>
+             onClick={()=>removeCounterLine(line)}>×</button>
           </div>
          </td>
          <td className="counter-summary-unit">{cash(Number(line.unit_price))}</td>
@@ -1017,9 +1007,8 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
       defaultCustomerId={form.customer_id}
       externalError={counterPaymentError}/>}
     <div className="counter-bottom-summary">
-     <div className="counter-cash-status"><span aria-hidden="true" className="counter-register-icon">▣</span><strong>Caixa em operação</strong></div>
      <div className="counter-total-panel"><span>Total da venda</span><strong>{cash(total)}</strong>
-      <button type="submit" disabled={busy||!cart.length}>{busy?'Salvando...':editing?'Salvar alterações':'Finalizar venda'} <small>Ctrl + Enter</small></button>
+      <button type="submit" disabled={busy||!cart.length}>{busy?'Salvando...':editing?'Salvar alterações':'Ir para pagamento'} <small>F8</small></button>
      </div>
     </div>
     <footer className="counter-shortcuts">
