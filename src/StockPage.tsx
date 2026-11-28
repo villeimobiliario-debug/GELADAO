@@ -82,7 +82,7 @@ function StockActionModal({products,initialProduct,initialAction,busy,onClose,on
  const selected=products.find(p=>p.id===productId&&p.active&&p.track_stock);
  const tracked=products.filter(p=>p.active&&p.track_stock);
  const term=search.trim().toLocaleLowerCase('pt-BR');
- const matches=term?tracked.filter(p=>[p.name,p.barcode,p.sku].some(x=>String(x||'').toLocaleLowerCase('pt-BR').includes(term))).slice(0,8):[];
+ const matches=term?tracked.filter(p=>[p.name,p.barcode,p.fardo_barcode,p.sku].some(x=>String(x||'').toLocaleLowerCase('pt-BR').includes(term))).slice(0,8):[];
  const parsed=parseQty(value);
  const parsedLoose=parseQty(looseCount);
  const parsedPrice=parseCost(entryPrice);
@@ -162,7 +162,9 @@ function StockActionModal({products,initialProduct,initialAction,busy,onClose,on
    <form ref={formRef} onSubmit={save}>
     <div className="stock-action-switch" role="group" aria-label="Tipo de movimentação">
      {(['entrada','saida','inventario'] as Action[]).map(kind=><button type="button" key={kind}
-      className={action===kind?'selected':''} onClick={()=>{setAction(kind);setValue('');setNote('');resetRequest();qtyRef.current?.focus()}}
+      className={action===kind?'selected':''} onClick={()=>{setAction(kind);setValue(selected?.fardo_enabled&&kind==='inventario'?String(selected.closed_fardos):'');
+       setLooseCount(selected?.fardo_enabled&&kind==='inventario'?String(selected.loose_units):'');
+       setNote('');resetRequest();qtyRef.current?.focus()}}
       disabled={saving}>{actionLabels[kind]}</button>)}
     </div>
     <div className="stock-modal-fields">
@@ -183,17 +185,39 @@ function StockActionModal({products,initialProduct,initialAction,busy,onClose,on
       </div>}
      </>}
      {selected&&<div className="stock-current"><span>Estoque atual</span><strong>{quantity(Number(selected.stock_qty))} {selected.unit}</strong></div>}
-     <label htmlFor="stock-quantity">{action==='entrada'?'Quantidade recebida':action==='saida'?'Quantidade retirada':'Nova quantidade contada'}</label>
+     {selected?.fardo_enabled&&<div className="stock-pack-physical">
+      <div><span>Fardos fechados</span><strong>{Number(selected.closed_fardos)}</strong></div>
+      <div><span>Unidades avulsas</span><strong>{quantity(Number(selected.loose_units))}</strong></div>
+      <div><span>Unid. por fardo</span><strong>{selected.units_per_fardo}</strong></div>
+     </div>}
+     {selected?.fardo_enabled&&action==='saida'&&<div className="stock-pack-exit-format" role="group" aria-label="Retirar fardos ou unidades">
+      <button type="button" className={exitFormat==='fardo'?'selected':''} onClick={()=>{setExitFormat('fardo');setValue('');resetRequest()}}>Fardos fechados</button>
+      <button type="button" className={exitFormat==='unidade'?'selected':''} onClick={()=>{setExitFormat('unidade');setValue('');resetRequest()}}>Unidades avulsas</button>
+     </div>}
+     <label htmlFor="stock-quantity">{selected?.fardo_enabled
+       ?action==='entrada'?'Quantidade recebida (fardos)':action==='saida'?('Quantidade retirada ('+(exitFormat==='fardo'?'fardos':'unidades')+')'):'Fardos fechados contados'
+       :action==='entrada'?'Quantidade recebida':action==='saida'?'Quantidade retirada':'Nova quantidade contada'}</label>
      <input id="stock-quantity" ref={qtyRef} type="text" inputMode="decimal" autoComplete="off" placeholder="Ex.: 30"
       value={value} onChange={e=>{setValue(e.target.value);resetRequest()}} disabled={saving||!selected}
-      onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();if(action==='entrada')priceRef.current?.focus();else noteRef.current?.focus()}}}/>
+      onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();
+       if(action==='entrada')priceRef.current?.focus();
+       else if(action==='inventario'&&isPack)looseRef.current?.focus();
+       else noteRef.current?.focus()
+      }}}/>
+     {action==='inventario'&&selected?.fardo_enabled&&<>
+      <label htmlFor="stock-loose-qty">Unidades avulsas contadas</label>
+      <input id="stock-loose-qty" ref={looseRef} type="number" min="0" step="1" inputMode="numeric"
+       value={looseCount} onChange={e=>{setLooseCount(e.target.value);resetRequest()}} disabled={saving}
+       onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();noteRef.current?.focus()}}}/>
+      <p className="stock-key-help">Informe exatamente a quantidade física: fardos lacrados + unidades fora dos fardos.</p>
+     </>}
      {action==='entrada'&&<div className="stock-entry-cost-fields">
-      <label htmlFor="stock-entry-cost">Preço de entrada por unidade (R$)</label>
+      <label htmlFor="stock-entry-cost">{isPack?'Preço de compra por fardo (R$)':'Preço de entrada por unidade (R$)'}</label>
       <input id="stock-entry-cost" ref={priceRef} type="text" inputMode="decimal" autoComplete="off"
        placeholder="Ex.: 75,00" value={entryPrice} disabled={saving||!selected}
        onChange={e=>{setEntryPrice(e.target.value);resetRequest()}}
        onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();formRef.current?.requestSubmit()}}}/>
-      <p>Preenchido inicialmente com o custo atual. Confirme ou altere conforme o preço cobrado pelo fornecedor.</p>
+      <p>{isPack?'Informe o custo de um fardo fechado; o sistema calculará custo unitário e média automaticamente.':'Preenchido com o custo atual; ajuste conforme o preço pago.'}</p>
       {entryTotal!==null&&selected&&<div className="stock-entry-cost-summary">
        <div><span>Total da entrada</span><strong>{money(entryTotal)}</strong></div>
        <div><span>Custo médio atual</span><strong>{averageMoney(Number(selected.purchase_price))}</strong></div>
