@@ -2458,3 +2458,28 @@ thead th{background:#fbfcfe}
  .counter-format-choice button strong{font-size:18px}
  .counter-line-format{font-size:11px}
 }
+
+/* GELADAO - PACK AWARE PRODUCT SEARCH */
+.counter-suggestions{max-height:290px}
+.counter-suggestions button{min-height:60px;gap:9px}
+.counter-suggestions button>span:first-child{flex:1;min-width:0}
+.counter-suggestions button>span:first-child b{font-size:13px;line-height:1.35}
+.counter-suggestions button>span:first-child small{
+ font-size:11px;color:#577694;font-weight:750;line-height:1.35;
+}
+.counter-suggestions button:has(.counter-suggestion-prices b)>span:first-child small{
+ color:#236a52;font-weight:820;
+}
+.counter-suggestions .counter-suggestion-prices{
+ display:grid;gap:4px;text-align:right;flex:none;min-width:125px;
+}
+.counter-suggestions .counter-suggestion-prices strong{
+ font-size:12px;color:#2a547d;
+}
+.counter-suggestions .counter-suggestion-prices b{
+ font-size:13px;font-weight:850;white-space:nowrap;color:#1462c1;
+}
+@media(max-width:650px){
+ .counter-suggestions button{flex-wrap:wrap}
+ .counter-suggestions .counter-suggestion-prices{flex-direction:row;display:flex;gap:12px;text-align:left;flex-wrap:wrap}
+}
