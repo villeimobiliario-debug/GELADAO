@@ -101,6 +101,46 @@ function CreditCustomerPicker({customers,selectedId,onSelect,balances}:{
  </div>;
 }
 
+function CounterRemoveDialog({lines,onClose,onRemove}:{lines:Line[];onClose:()=>void;onRemove:(line:Line)=>void}){
+ const [selected,setSelected]=useState(0);
+ const dialogRef=useRef<HTMLDivElement>(null);
+ const itemRefs=useRef<(HTMLButtonElement|null)[]>([]);
+ useEffect(()=>{dialogRef.current?.focus()},[]);
+ useEffect(()=>{itemRefs.current[selected]?.scrollIntoView({block:'nearest'})},[selected]);
+ const choose=(line:Line)=>onRemove(line);
+ return <div className="counter-remove-overlay">
+  <div className="counter-remove-dialog" role="dialog" aria-modal="true" aria-label="Escolher produto para excluir"
+   tabIndex={-1} ref={dialogRef} onKeyDown={e=>{
+    if(e.key==='Escape'){e.preventDefault();e.stopPropagation();onClose();return}
+    if(e.key==='ArrowDown'){e.preventDefault();e.stopPropagation();setSelected(i=>Math.min(i+1,lines.length-1));return}
+    if(e.key==='ArrowUp'){e.preventDefault();e.stopPropagation();setSelected(i=>Math.max(0,i-1));return}
+    if(e.key==='Enter'&&lines[selected]){e.preventDefault();e.stopPropagation();choose(lines[selected])}
+   }}>
+   <header className="counter-remove-header">
+    <div><small>GELADÃO · PDV BALCÃO</small><h2>Excluir produto da venda</h2></div>
+    <button type="button" aria-label="Fechar seleção" onClick={onClose}>×</button>
+   </header>
+   <p className="counter-remove-hint">Selecione exatamente o produto que deseja remover. Os demais itens permanecerão na venda.</p>
+   <div className="counter-remove-items" role="list" aria-label="Produtos adicionados ao resumo">
+    {lines.map((line,i)=><button type="button" key={saleKey(line)} role="listitem"
+     ref={el=>{itemRefs.current[i]=el}}
+     className={'counter-remove-choice'+(selected===i?' selected':'')}
+     onMouseEnter={()=>setSelected(i)} onClick={()=>choose(line)}>
+     <span className="counter-remove-item-index">{i+1}</span>
+     <span className="counter-remove-item-info"><strong>{line.product.name}</strong>
+      <small>{line.quantity} × {line.sale_format==='fardo'?'Fardo ('+line.units_per_fardo+' unidades)':'Unidade'} · {cash(line.unit_price)}</small></span>
+     <b>{cash(line.quantity*line.unit_price)}</b>
+     <span className="counter-remove-item-action">Excluir</span>
+    </button>)}
+   </div>
+   <footer className="counter-remove-footer">
+    <span>↑ ↓ escolher · Enter excluir · Esc cancelar</span>
+    <button type="button" onClick={onClose}>Voltar sem excluir</button>
+   </footer>
+  </div>
+ </div>;
+}
+
 function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfirm,busy,externalError,customers,balances,defaultCustomerId}:{
  total:number;discount:string;onDiscountChange:(value:string)=>void;onClose:()=>void;
  onConfirm:(lines:CounterPayment[],customerId?:string)=>void;busy:boolean;externalError:string;
@@ -302,6 +342,7 @@ function App(){
  const [query,setQuery]=useState(''),[customerQuery,setCustomerQuery]=useState(''),[orderQuery,setOrderQuery]=useState('');
  const [saleOpen,setSaleOpen]=useState(false),[saleChannel,setSaleChannel]=useState<'balcao'|'delivery'>('delivery'),[editing,setEditing]=useState<Order|null>(null);
  const [counterSaleFormat,setCounterSaleFormat]=useState<SaleFormat>('unidade'),[counterChoosingFormat,setCounterChoosingFormat]=useState(false);
+ const [counterRemoveOpen,setCounterRemoveOpen]=useState(false);
  const [counterQty,setCounterQty]=useState('1'),[counterPaymentError,setCounterPaymentError]=useState(''),[counterError,setCounterError]=useState(''),[counterChoiceIndex,setCounterChoiceIndex]=useState(-1),[counterLastProductId,setCounterLastProductId]=useState<string|null>(null),[counterPendingProductId,setCounterPendingProductId]=useState<string|null>(null),[counterPaymentOpen,setCounterPaymentOpen]=useState(false),[counterClock,setCounterClock]=useState(()=>new Date());
  const [form,setForm]=useState<Form>(initialForm),[cart,setCart]=useState<Line[]>([]),[productSearch,setProductSearch]=useState(''),[customerSearch,setCustomerSearch]=useState(''),[customerChoiceIndex,setCustomerChoiceIndex]=useState(-1);
  const [newProduct,setNewProduct]=useState(false),[editProduct,setEditProduct]=useState<Product|null>(null);
@@ -342,6 +383,15 @@ function App(){
  useEffect(()=>{if(staff?.active)void refresh()},[staff?.active,refresh]);
  useEffect(()=>{if(!staff?.active)return;
  const key=(e:KeyboardEvent)=>{
+  if(saleOpen&&saleChannel==='balcao'&&counterRemoveOpen){
+   if(e.key==='Escape'||e.key==='F5'){
+    e.preventDefault();setCounterRemoveOpen(false);
+    window.requestAnimationFrame(()=>counterSearchRef.current?.focus());
+   }else if(e.key.startsWith('F')||(e.ctrlKey&&e.key==='Enter')){
+    e.preventDefault();
+   }
+   return;
+  }
   if(e.key==='F1'&&!newProduct&&!newCustomer){
    e.preventDefault();
    if(busy)return;
@@ -370,7 +420,7 @@ function App(){
   if(saleChannel==='balcao'&&counterPaymentOpen)return;
   if(saleChannel==='balcao'){
    if(e.key==='F3'||e.key==='F4'){e.preventDefault();counterSearchRef.current?.focus();return}
-   if(e.key==='F5'){e.preventDefault();const last=cart[cart.length-1];if(last&&window.confirm('Remover '+last.product.name+' da venda?'))changeQty(last.product.id,0,last.sale_format);return}
+   if(e.key==='F5'){e.preventDefault();openCounterRemoval();return}
    if(e.key==='F6'){e.preventDefault();if(!cart.length){setNotice('Adicione um produto antes de informar o pagamento.');return}setCounterPaymentError('');setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-discount')?.focus());return}
    if(e.key==='F7'){e.preventDefault();const last=orders.find(o=>o.channel==='balcao'&&o.status==='active');if(last)print(last);return}
    if(e.key==='F8'){e.preventDefault();if(!cart.length){setNotice('Adicione ao menos um produto antes de pagar.');return}setCounterPaymentError('');setCounterPaymentOpen(true);return}
@@ -382,7 +432,7 @@ function App(){
   if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();void saveSale()}
  };
  window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)
- },[saleOpen,saleChannel,page,form,cart,editing,staff?.active,busy,newProduct,newCustomer,counterPaymentOpen,orders]);
+ },[saleOpen,saleChannel,page,form,cart,editing,staff?.active,busy,newProduct,newCustomer,counterPaymentOpen,counterRemoveOpen,orders]);
  useEffect(()=>{if(!saleOpen)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=previous}},[saleOpen]);
  useEffect(()=>{if(!saleOpen||saleChannel!=='balcao')return;setCounterClock(new Date());const timer=window.setInterval(()=>setCounterClock(new Date()),1000);return()=>window.clearInterval(timer)},[saleOpen,saleChannel]);
  useEffect(()=>{
@@ -421,7 +471,7 @@ function App(){
  }
  async function requestAccess(){if(!email.trim()||password.length<8){setNotice('Informe e-mail e senha com pelo menos 8 caracteres.');return}setBusy(true);const {error}=await sb.auth.signUp({email:email.trim(),password});setNotice(error?error.message:'Solicitação criada. Confirme o e-mail, se solicitado; um administrador precisará autorizar o perfil.');setBusy(false)}
  async function logout(){await sb.auth.signOut();setStaff(null);setUser(null);setPage('dashboard')}
- function openSale(channel:'balcao'|'delivery'){setSaleChannel(channel);setEditing(null);setForm({...initialForm});setCart([]);setProductSearch('');setCustomerSearch('');setCustomerChoiceIndex(-1);setCounterQty('1');setCounterPaymentError('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(null);setCounterPendingProductId(null);setCounterSaleFormat('unidade');setCounterChoosingFormat(false);setCounterPaymentOpen(false);setNotice('');setSaleOpen(true)}
+ function openSale(channel:'balcao'|'delivery'){setCounterRemoveOpen(false);setSaleChannel(channel);setEditing(null);setForm({...initialForm});setCart([]);setProductSearch('');setCustomerSearch('');setCustomerChoiceIndex(-1);setCounterQty('1');setCounterPaymentError('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(null);setCounterPendingProductId(null);setCounterSaleFormat('unidade');setCounterChoosingFormat(false);setCounterPaymentOpen(false);setNotice('');setSaleOpen(true)}
  function startFreshCounter(){
   if(busy)return;
   if((editing||cart.length||form.customer_name.trim()||form.customer_phone.trim()||form.note.trim()||number(form.discount)>0)&&!window.confirm('Descartar a venda atual e iniciar outra venda de balcão?'))return;
@@ -431,7 +481,7 @@ function App(){
    if(busy)return;
    const hasUnsavedChanges=Boolean(editing||cart.length||Object.keys(initialForm).some(key=>form[key as keyof Form]!==initialForm[key as keyof Form]));
    if(hasUnsavedChanges&&!window.confirm('Descartar alterações desta venda?'))return;
-   setSaleOpen(false);
+   setCounterRemoveOpen(false);setSaleOpen(false);
  }
  
  async function receiveCredit(e:FormEvent){
@@ -481,6 +531,17 @@ async function editSale(o:Order){if(creditBalances.some(x=>x.order_id===o.id)){s
  }
  function changeQty(id:string,qty:number,format:SaleFormat='unidade'){
   setCart(lines=>lines.map(x=>x.product.id===id&&x.sale_format===format?{...x,quantity:qty}:x).filter(x=>x.quantity>0))
+ }
+ function removeCounterLine(line:Line){
+  setCart(lines=>lines.filter(x=>saleKey(x)!==saleKey(line)));
+  setCounterRemoveOpen(false);
+  setCounterLastProductId(id=>id===line.product.id?null:id);
+  setCounterError('');
+  window.requestAnimationFrame(()=>counterSearchRef.current?.focus());
+ }
+ function openCounterRemoval(){
+  if(!cart.length){setNotice('Adicione um produto antes de remover um item.');return}
+  setCounterRemoveOpen(true);
  }
  function prepareCounterQuantity(p:Product){
   const code=productSearch.trim();
@@ -891,7 +952,10 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
          <td className="counter-summary-quantity"><strong>{line.quantity}×</strong></td>
          <td className="counter-summary-product">
           <div><span title={line.product.name}>{line.product.name} <small className="counter-line-format">{line.sale_format==='fardo'?'· FARDO ('+line.units_per_fardo+' un.)':'· UNIDADE'}</small></span>
-           <button type="button" className="counter-summary-remove" title={'Remover '+line.product.name} aria-label={'Remover '+line.product.name} onClick={()=>changeQty(line.product.id,0,line.sale_format)}>×</button>
+           <button type="button" className="counter-summary-remove"
+             title={'Excluir '+line.product.name+' — '+(line.sale_format==='fardo'?'Fardo':'Unidade')}
+             aria-label={'Excluir '+line.product.name+' — '+(line.sale_format==='fardo'?'Fardo':'Unidade')+' do resumo'}
+             onClick={()=>removeCounterLine(line)}><span aria-hidden="true">×</span> Excluir</button>
           </div>
          </td>
          <td className="counter-summary-unit">{cash(Number(line.unit_price))}</td>
@@ -904,6 +968,9 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
      </section>
     </div>
     
+    {counterRemoveOpen&&cart.length>0&&<CounterRemoveDialog lines={cart}
+      onClose={()=>{setCounterRemoveOpen(false);window.requestAnimationFrame(()=>counterSearchRef.current?.focus())}}
+      onRemove={removeCounterLine}/>}
     {counterPaymentOpen&&<CounterCheckoutDialog
       total={total} discount={form.discount}
       onDiscountChange={value=>{updateForm('discount',value);setCounterPaymentError('')}}
@@ -923,7 +990,7 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
      <button type="button" onClick={startFreshCounter}><kbd>F2</kbd> Nova venda</button>
      <button type="button" onClick={()=>counterSearchRef.current?.focus()}><kbd>F3</kbd> Consultar produto</button>
      <button type="button" onClick={()=>counterSearchRef.current?.focus()}><kbd>F4</kbd> Código</button>
-     <button type="button" disabled={!cart.length} onClick={()=>{const last=cart[cart.length-1];if(last&&window.confirm('Remover '+last.product.name+' da venda?'))changeQty(last.product.id,0,last.sale_format)}}><kbd>F5</kbd> Remover item</button>
+     <button type="button" disabled={!cart.length} onClick={openCounterRemoval}><kbd>F5</kbd> Escolher item para excluir</button>
      <button type="button" onClick={()=>{if(!cart.length){setNotice('Adicione um produto primeiro.');return}setCounterPaymentError('');setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-discount')?.focus())}}><kbd>F6</kbd> Desconto</button>
      <button type="button" disabled={!counterLastOrder} onClick={()=>{if(counterLastOrder)print(counterLastOrder)}}><kbd>F7</kbd> Reimprimir</button>
      <button type="button" onClick={()=>{if(!cart.length){setNotice('Adicione um produto primeiro.');return}setCounterPaymentError('');setCounterPaymentOpen(true)}}><kbd>F8</kbd> Pagamento</button>
