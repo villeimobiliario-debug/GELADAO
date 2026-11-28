@@ -646,8 +646,7 @@ async function editSale(o:Order){if(creditBalances.some(x=>x.order_id===o.id)){s
   }catch(err){showError(err)}
  }
  async function cancel(o:Order){if(creditBalances.some(x=>x.order_id===o.id)){setNotice('Uma venda fiada não pode ser cancelada pelo histórico: o saldo precisa de estorno auditável.');return}if(!admin||!window.confirm('Cancelar pedido #'+o.order_number+'? O estoque controlado será devolvido, mas o sistema NÃO estorna pagamentos. Confirme o estorno manualmente quando necessário.'))return;try{const{error}=await sb.rpc('cancel_order',{p_order_id:o.id,p_expected_version:o.version});if(error)throw error;await refresh()}catch(err){showError(err)}}
- function print(o:Order){const w=window.open('','_blank','width=440,height=680');if(!w){setNotice('Permita janelas pop-up para imprimir.');return}
-  w.document.write('<p>Preparando cupom...</p>');void (async()=>{try{
+ function print(o:Order){setNotice('Preparando cupom #'+o.order_number+' para a impressora de 80 mm...');void (async()=>{try{
    const [{data,error},{data:paymentParts,error:payError},{data:creditSummary,error:creditError}]=await Promise.all([
     sb.from('order_items').select('*').eq('order_id',o.id),
     sb.from('order_payments').select('method,amount,tendered_amount,change_amount').eq('order_id',o.id).order('sequence'),
@@ -663,9 +662,32 @@ async function editSale(o:Order){if(creditBalances.some(x=>x.order_id===o.id)){s
    const creditDetails=creditSummary?'<div>Conta do cliente: <b>'+cash(Number(creditSummary.credit_amount))+'</b></div>'+
     '<div>Saldo fiado: <b>'+cash(Number(creditSummary.balance))+'</b></div>':'';
    const paymentSituation=creditSummary?(Number(creditSummary.balance)<=0?'QUITADO':'A RECEBER'):(o.payment_status==='paid'?'RECEBIDO':o.collect_on_delivery?'RECEBER NA ENTREGA':'A RECEBER');
-   const html='<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><title>Cupom '+o.order_number+'</title><style>@page{size:80mm auto;margin:3mm}body{font:12px monospace;color:black;width:72mm;margin:0 auto}h1,h2,p{text-align:center;margin:5px}h1{font-size:20px}hr{border:0;border-top:1px dashed #555;margin:10px 0}table{width:100%;border-collapse:collapse}td{padding:3px 0}strong.total{font-size:19px}small{font-size:10px}button{margin:12px auto;display:block;padding:9px}@media print{button{display:none}}</style></head><body><h1>'+escapeHtml(settings.store_name)+'</h1><p>'+escapeHtml(settings.store_subtitle)+'</p><p>'+escapeHtml(settings.store_phone||'')+'</p><p>'+escapeHtml(settings.store_address||'')+'</p><p><b>CUPOM NÃO FISCAL</b></p><hr><b>PEDIDO #'+o.order_number+' — '+(o.channel==='delivery'?'DELIVERY':'BALCÃO')+'</b><p>'+fmt(o.sold_at)+'</p><hr><div>Cliente: '+escapeHtml(o.customer_name||'Não identificado')+'</div><div>Telefone: '+escapeHtml(o.customer_phone||'-')+'</div>'+ (o.channel==='delivery'&&address?'<div>Endereço: '+escapeHtml(address)+'</div>':'')+'<hr><table>'+rows+'</table><hr><table><tr><td>Subtotal</td><td align="right">'+cash(Number(o.subtotal))+'</td></tr><tr><td>Entrega</td><td align="right">'+cash(Number(o.delivery_fee))+'</td></tr><tr><td>Desconto</td><td align="right">'+cash(Number(o.discount))+'</td></tr><tr><td><strong class="total">TOTAL</strong></td><td align="right"><strong class="total">'+cash(Number(o.total))+'</strong></td></tr></table><hr><div>Pagamento: '+escapeHtml(paymentLabels[o.payment_method]||o.payment_method)+'</div>'+paymentDetails+creditDetails+'<div>Situação: <b>'+paymentSituation+'</b></div>'+(o.channel==='delivery'&&(o.collect_on_delivery||o.delivery_collection_amount!=null)?'<div>Valor informado na entrega: <b>'+cash(o.delivery_collection_amount==null?Number(o.total):Number(o.delivery_collection_amount))+'</b></div>':'')+(o.note?'<div>Observações: '+escapeHtml(o.note)+'</div>':'')+'<hr><p>'+escapeHtml(settings.receipt_footer||'Obrigado!')+'</p><p><small>ESTE DOCUMENTO NÃO É NOTA FISCAL</small></p><button onclick="window.print()">Imprimir</button><script>window.onload=()=>{setTimeout(()=>window.print(),250)}<\/script></body></html>';
-   w.document.open();w.document.write(html);w.document.close();
-  }catch(err){w.close();showError(err)}})();}
+   const html='<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><title>Cupom '+o.order_number+'</title><style>@page{size:80mm auto;margin:3mm}body{font:12px monospace;color:black;width:72mm;margin:0 auto}h1,h2,p{text-align:center;margin:5px}h1{font-size:20px}hr{border:0;border-top:1px dashed #555;margin:10px 0}table{width:100%;border-collapse:collapse}td{padding:3px 0}strong.total{font-size:19px}small{font-size:10px}button{margin:12px auto;display:block;padding:9px}@media print{button{display:none}}</style></head><body><h1>'+escapeHtml(settings.store_name)+'</h1><p>'+escapeHtml(settings.store_subtitle)+'</p><p>'+escapeHtml(settings.store_phone||'')+'</p><p>'+escapeHtml(settings.store_address||'')+'</p><p><b>CUPOM NÃO FISCAL</b></p><hr><b>PEDIDO #'+o.order_number+' — '+(o.channel==='delivery'?'DELIVERY':'BALCÃO')+'</b><p>'+fmt(o.sold_at)+'</p><hr><div>Cliente: '+escapeHtml(o.customer_name||'Não identificado')+'</div><div>Telefone: '+escapeHtml(o.customer_phone||'-')+'</div>'+ (o.channel==='delivery'&&address?'<div>Endereço: '+escapeHtml(address)+'</div>':'')+'<hr><table>'+rows+'</table><hr><table><tr><td>Subtotal</td><td align="right">'+cash(Number(o.subtotal))+'</td></tr><tr><td>Entrega</td><td align="right">'+cash(Number(o.delivery_fee))+'</td></tr><tr><td>Desconto</td><td align="right">'+cash(Number(o.discount))+'</td></tr><tr><td><strong class="total">TOTAL</strong></td><td align="right"><strong class="total">'+cash(Number(o.total))+'</strong></td></tr></table><hr><div>Pagamento: '+escapeHtml(paymentLabels[o.payment_method]||o.payment_method)+'</div>'+paymentDetails+creditDetails+'<div>Situação: <b>'+paymentSituation+'</b></div>'+(o.channel==='delivery'&&(o.collect_on_delivery||o.delivery_collection_amount!=null)?'<div>Valor informado na entrega: <b>'+cash(o.delivery_collection_amount==null?Number(o.total):Number(o.delivery_collection_amount))+'</b></div>':'')+(o.note?'<div>Observações: '+escapeHtml(o.note)+'</div>':'')+'<hr><p>'+escapeHtml(settings.receipt_footer||'Obrigado!')+'</p><p><small>ESTE DOCUMENTO NÃO É NOTA FISCAL</small></p></body></html>';
+   const frame=document.createElement('iframe');
+   frame.title='Cupom térmico #'+o.order_number;
+   frame.setAttribute('aria-hidden','true');
+   frame.style.cssText='position:fixed;left:-9999px;top:0;width:80mm;height:180mm;border:0;opacity:0;pointer-events:none';
+   const cleanup=()=>{if(frame.isConnected)frame.remove()};
+   frame.onload=()=>{
+    window.setTimeout(()=>{
+     const printWindow=frame.contentWindow;
+     if(!printWindow){cleanup();setNotice('Não foi possível preparar o cupom. Use Reimprimir.');return}
+     try{
+      printWindow.addEventListener('afterprint',()=>window.setTimeout(cleanup,2000),{once:true});
+      printWindow.focus();
+      printWindow.print();
+      setNotice('Impressão do pedido #'+o.order_number+' solicitada ao navegador. Se não sair papel, confira a impressora e use Reimprimir.');
+     }catch(error){
+      cleanup();
+      setNotice('Impressão bloqueada pelo navegador. Verifique a configuração e use Reimprimir.');
+     }
+    },180);
+   };
+   frame.onerror=()=>{cleanup();setNotice('Não foi possível abrir o cupom. Use Reimprimir.');};
+   frame.srcdoc=html;
+   document.body.appendChild(frame);
+   window.setTimeout(cleanup,120000);
+  }catch(err){showError(err);setNotice('Falha ao preparar o cupom. A venda foi preservada; use Reimprimir.')}})();}
  async function saveProduct(e:FormEvent){e.preventDefault();if(!admin)return;setBusy(true);try{
  const record={name:productForm.name.trim(),category_id:productForm.category_id?Number(productForm.category_id):null,
  barcode:productForm.barcode||null,sku:productForm.sku||null,unit:productForm.unit,
