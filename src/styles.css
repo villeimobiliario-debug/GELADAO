@@ -2834,3 +2834,65 @@ thead th{background:#fbfcfe}
   .counter-total-panel>strong{font-size:32px}
   .counter-entry-grid input{font-size:21px}
 }
+
+
+/* GELADAO - PIX QR CODE COM CONFIRMACAO MANUAL, APENAS NO PDV BALCAO */
+.counter-pix-panel{display:grid;gap:14px;width:100%;max-width:640px;margin:0 auto}
+.counter-pix-value{
+ display:flex;align-items:center;justify-content:space-between;gap:12px;
+ padding:12px 16px;background:#edf5ff;border:1px solid #c7dcf9;border-radius:12px;
+}
+.counter-pix-value span{font-size:15px;font-weight:770;color:#44668e}
+.counter-pix-value strong{font-size:clamp(24px,3vw,33px);font-weight:900;color:#104686;font-variant-numeric:tabular-nums}
+.counter-pix-content{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center}
+.counter-pix-qr{
+ display:grid;place-items:center;padding:12px;
+ background:#fff;border:2px solid #e1e9f4;border-radius:13px;
+ box-shadow:0 4px 12px rgba(16,50,90,.08);
+}
+.counter-pix-qr svg{max-width:100%;height:auto}
+.counter-pix-copy{display:flex;flex-direction:column;gap:9px;min-width:0}
+.counter-pix-copy label{font-size:15px;font-weight:800;color:#264971}
+.counter-pix-copy input{width:100%;min-height:48px;font-size:12px;padding:8px 11px;text-align:left}
+.counter-pix-copy button{
+ min-height:46px;border:1px solid #225fc7;background:#155bc2;color:#fff;
+ padding:10px 12px;border-radius:9px;font-size:15px;font-weight:800;
+}
+.counter-pix-copy button:hover{background:#0d489b}
+.counter-pix-copy small{font-size:13px;color:#1459ab}
+.counter-pix-warning{
+ margin:0;background:#fff8e8;border:1px solid #efdbab;border-radius:10px;
+ color:#735321;font-size:14px;line-height:1.45;padding:12px 14px;font-weight:690;
+}
+.counter-pix-setup{
+ margin:0;background:#fff2f1;border:1px solid #f0c6c4;border-radius:10px;
+ color:#912e30;font-size:15px;line-height:1.5;padding:16px;
+}
+.counter-pix-check{
+ display:flex;flex-direction:row;align-items:center;gap:12px;
+ padding:15px;border:2px solid #a7c9ec;background:#f2f8ff;border-radius:11px;
+ color:#123f75;font-size:16px;font-weight:800;cursor:pointer;
+}
+.counter-pix-check input[type="checkbox"]{
+ width:26px;height:26px;flex:none;accent-color:#155dbd;cursor:pointer;
+}
+.counter-pix-check span{line-height:1.45}
+.counter-pay-pix>.counter-pay-finish{align-self:center;width:min(520px,100%);min-height:58px}
+.counter-pay-pix>.counter-pay-back{align-self:center}
+.counter-pay-entry .counter-pix-panel{width:100%;max-width:none}
+.settings-pix{
+ display:grid;gap:13px;border:1px solid #cbdcf2;background:#f4f8ff;
+ border-radius:14px;padding:18px;min-width:0;margin:4px 0;
+}
+.settings-pix legend{font-size:17px;font-weight:850;color:#133e7c;padding:0 6px}
+.settings-pix p{font-size:13px;line-height:1.55;margin:0;color:#4e6682}
+.settings-pix label{font-size:13px;font-weight:780;color:#2c4e75}
+.settings-pix-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.settings-pix small{line-height:1.45;color:#5c7594}
+@media(max-width:620px){
+ .counter-pix-content{grid-template-columns:1fr}
+ .counter-pix-qr{justify-self:center}
+ .counter-pix-value{flex-wrap:wrap}
+ .counter-pix-check{font-size:14px}
+ .settings-pix-grid{grid-template-columns:1fr}
+}
