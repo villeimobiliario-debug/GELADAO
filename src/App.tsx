@@ -824,21 +824,29 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
         }}/>
        <span aria-hidden="true" className="counter-barcode-icon">▥</span>
       </div>
-      {counterPendingProduct&&<p className="counter-qty-prompt" role="status">Produto selecionado: <b>{counterPendingProduct.name}</b>. Informe a quantidade e pressione Enter. Campo vazio = 1 unidade.</p>}
+      {counterPendingProduct&&<p className="counter-qty-prompt" role="status">Produto: <b>{counterPendingProduct.name}</b>. {counterChoosingFormat?'Escolha a apresentação 1 ou 2.':('Informe a quantidade de '+(counterSaleFormat==='fardo'?'fardos':'unidades')+' e pressione Enter.')}</p>}
+      {counterPendingProduct?.fardo_enabled&&counterChoosingFormat&&<div className="counter-format-choice"
+       ref={counterFormatRef} tabIndex={0} aria-label="Escolha a apresentação"
+       onKeyDown={e=>{if(e.key==='1'||e.key==='2'){e.preventDefault();e.stopPropagation();chooseCounterFormat(e.key==='2'?'fardo':'unidade')}else if(e.key==='Enter'){e.preventDefault();e.stopPropagation();chooseCounterFormat('unidade')}}}>
+       <button type="button" onClick={()=>chooseCounterFormat('unidade')}><kbd>1</kbd> Unidade <strong>{cash(Number(counterPendingProduct.sale_price))}</strong></button>
+       <button type="button" onClick={()=>chooseCounterFormat('fardo')}><kbd>2</kbd> Fardo ({counterPendingProduct.units_per_fardo} un.) <strong>{cash(Number(counterPendingProduct.fardo_sale_price))}</strong></button>
+      </div>}
+      {counterPendingProduct?.fardo_enabled&&!counterChoosingFormat&&<div className="counter-format-selected"><b>{counterSaleFormat==='fardo'?'FARDO · '+counterPendingProduct.units_per_fardo+' unidades':'UNIDADE'}</b>
+       <button type="button" onClick={()=>{setCounterChoosingFormat(true);window.requestAnimationFrame(()=>counterFormatRef.current?.focus())}}>Alterar apresentação</button></div>}
       {productSearch&&!counterPendingProduct&&<div className="counter-suggestions" role="listbox" aria-label="Produtos encontrados">
        {counterMatches.map((p,i)=><button type="button" key={p.id} className={p.id===counterSelected?.id?'selected':''}
         onClick={()=>prepareCounterQuantity(p)} role="option" aria-selected={p.id===counterSelected?.id}>
-        <span><b>{p.name}</b><small>{p.barcode||p.sku||p.unit}</small></span><strong>{cash(Number(p.sale_price))}</strong>
+        <span><b>{p.name}</b><small>{p.barcode||p.sku||p.unit}{p.fardo_enabled?' · Fardo: '+p.units_per_fardo+' un.':''}</small></span><strong>{cash(Number(p.sale_price))}{p.fardo_enabled?' / '+cash(Number(p.fardo_sale_price))+' fardo':''}</strong>
        </button>)}
        {!counterMatches.length&&<p>Nenhum produto encontrado.</p>}
       </div>}
       <div className="counter-entry-grid">
        <label htmlFor="counter-qty">Quantidade
-        <input id="counter-qty" ref={counterQtyRef} type="number" min="1" max="100000" step="1" placeholder="1" value={counterQty} onChange={e=>setCounterQty(e.target.value)}
+        <input id="counter-qty" ref={counterQtyRef} type="number" min="1" max="100000" step="1" placeholder="1" value={counterQty} disabled={counterChoosingFormat} onChange={e=>setCounterQty(e.target.value)}
          onKeyDown={e=>{if(e.key==='Enter'&&!e.ctrlKey){e.preventDefault();e.stopPropagation();if(counterPendingProduct)addCounterProduct(counterPendingProduct);else if(counterSelected)prepareCounterQuantity(counterSelected);else counterSearchRef.current?.focus()}}}/>
        </label>
-       <label>Preço unitário<input readOnly value={counterPreview?cash(Number(counterPreview.sale_price)):cash(0)} tabIndex={-1}/></label>
-       <label>Total do item<input readOnly value={counterPreview?cash(Number(counterPreview.sale_price)*counterPreviewQty):cash(0)} tabIndex={-1}/></label>
+       <label>Preço {counterSaleFormat==='fardo'?'por fardo':'unitário'}<input readOnly value={counterPreview?cash(priceFor(counterPreview,counterPreview.fardo_enabled?counterSaleFormat:'unidade')):cash(0)} tabIndex={-1}/></label>
+       <label>Total do item<input readOnly value={counterPreview?cash(priceFor(counterPreview,counterPreview.fardo_enabled?counterSaleFormat:'unidade')*counterPreviewQty):cash(0)} tabIndex={-1}/></label>
       </div>
       <button type="button" className="counter-add" disabled={!counterPendingProduct&&!counterSelected} onClick={()=>{if(counterPendingProduct)addCounterProduct(counterPendingProduct);else if(counterSelected)prepareCounterQuantity(counterSelected)}}>{counterPendingProduct?'+ Adicionar ao resumo':'Selecionar produto'} <span>Enter</span></button>
       <details className="counter-more" ref={counterCustomerDetailsRef}>
@@ -859,10 +867,10 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
        <table className="counter-ticket-table counter-summary-table">
         <colgroup><col className="counter-col-qty"/><col className="counter-col-product"/><col className="counter-col-unit"/><col className="counter-col-total"/></colgroup>
         <thead><tr><th scope="col">Quantidade</th><th scope="col">Produto</th><th scope="col">Valor unitário</th><th scope="col">Valor total</th></tr></thead>
-        <tbody>{cart.map(line=><tr key={line.product.id}>
+        <tbody>{cart.map(line=><tr key={saleKey(line)}>
          <td className="counter-summary-quantity"><strong>{line.quantity}×</strong></td>
          <td className="counter-summary-product">
-          <div><span title={line.product.name}>{line.product.name}</span>
+          <div><span title={line.product.name}>{line.product.name} <small className="counter-line-format">{line.sale_format==='fardo'?'· FARDO ('+line.units_per_fardo+' un.)':'· UNIDADE'}</small></span>
            <button type="button" className="counter-summary-remove" title={'Remover '+line.product.name} aria-label={'Remover '+line.product.name} onClick={()=>changeQty(line.product.id,0,line.sale_format)}>×</button>
           </div>
          </td>
