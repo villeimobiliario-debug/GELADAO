@@ -1,6 +1,7 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import type {FormEvent,KeyboardEvent as ReactKey} from 'react';
 import {supabase as sb} from './supabase';
+import './stock.css';
 
 type StockProduct={
  id:string;name:string;barcode:string|null;sku:string|null;unit:string;
