@@ -2408,3 +2408,53 @@ thead th{background:#fbfcfe}
  .credit-client-metrics>div{padding:10px}
  .credit-receive-fields{grid-template-columns:1fr}
 }
+
+/* GELADAO FARDO/UNIDADE PRESENTATIONS */
+.counter-format-choice{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
+ padding:13px;background:#edf5ff;border:2px solid #9dc8f7;border-radius:12px;
+ outline:none;
+}
+.counter-format-choice:focus-visible{box-shadow:0 0 0 3px #4e9bfa4d}
+.counter-format-choice button{
+ display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+ justify-content:space-between;
+ min-height:66px;border:2px solid #bbd5fa;border-radius:10px;
+ background:#fff;color:#193e6c;font-size:16px;font-weight:790;padding:13px 15px;
+}
+.counter-format-choice button:hover,.counter-format-choice button:focus-visible{
+ background:#dfefff;border-color:#367ce2;outline:2px solid #96c3ff;
+}
+.counter-format-choice button kbd{
+ display:inline-grid;place-items:center;width:29px;height:29px;
+ border-radius:7px;background:#0f4fac;color:#fff;font-weight:830;
+}
+.counter-format-choice button strong{color:#0b4b9e;font-size:20px;font-variant-numeric:tabular-nums}
+.counter-format-selected{
+ display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+ background:#e8f6ef;border:1px solid #aed9c5;padding:8px 13px;border-radius:9px;
+ gap:8px;
+}
+.counter-format-selected b{font-size:13px;color:#186349}
+.counter-format-selected button{
+ border:0;border-radius:7px;background:#fff;color:#246398;
+ font-size:12px;font-weight:760;padding:7px 11px;
+}
+.counter-line-format{display:block;font-size:12px;font-weight:790;color:#6584a5;margin-top:2px}
+.delivery-product-options{
+ display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+ padding:7px;border-bottom:1px solid #e0eaf6;
+}
+.delivery-product-options>span{flex:1 1 130px;font-weight:750;color:#244e7d;font-size:13px}
+.delivery-product-options button{
+ border:1px solid #b9d2f4;border-radius:8px;
+ background:#edf5ff;color:#1b5da9;
+ font-size:12px;padding:8px 10px;font-weight:750;
+}
+.delivery-product-options button:hover{background:#d9eaff}
+@media(max-width:640px){
+ .counter-format-choice{grid-template-columns:1fr}
+ .counter-format-choice button{min-height:54px}
+ .counter-format-choice button strong{font-size:18px}
+ .counter-line-format{font-size:11px}
+}
