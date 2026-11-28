@@ -114,7 +114,10 @@ function CounterRemoveDialog({lines,onClose,onRemove}:{lines:Line[];onClose:()=>
     if(e.key==='Escape'){e.preventDefault();e.stopPropagation();onClose();return}
     if(e.key==='ArrowDown'){e.preventDefault();e.stopPropagation();setSelected(i=>Math.min(i+1,lines.length-1));return}
     if(e.key==='ArrowUp'){e.preventDefault();e.stopPropagation();setSelected(i=>Math.max(0,i-1));return}
-    if(e.key==='Enter'&&lines[selected]){e.preventDefault();e.stopPropagation();choose(lines[selected])}
+    if(e.key==='Enter'&&lines[selected]&&
+       (e.target===dialogRef.current||(e.target as HTMLElement).classList.contains('counter-remove-choice'))){
+      e.preventDefault();e.stopPropagation();choose(lines[selected])
+    }
    }}>
    <header className="counter-remove-header">
     <div><small>GELADÃO · PDV BALCÃO</small><h2>Excluir produto da venda</h2></div>
@@ -955,7 +958,7 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
            <button type="button" className="counter-summary-remove"
              title={'Excluir '+line.product.name+' — '+(line.sale_format==='fardo'?'Fardo':'Unidade')}
              aria-label={'Excluir '+line.product.name+' — '+(line.sale_format==='fardo'?'Fardo':'Unidade')+' do resumo'}
-             onClick={()=>removeCounterLine(line)}><span aria-hidden="true">×</span> Excluir</button>
+             onClick={()=>removeCounterLine(line)}>× Excluir</button>
           </div>
          </td>
          <td className="counter-summary-unit">{cash(Number(line.unit_price))}</td>
