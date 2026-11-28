@@ -578,7 +578,7 @@ async function editSale(o:Order){if(creditBalances.some(x=>x.order_id===o.id)){s
    ]);
    if(error)throw error;if(payError)throw payError;if(creditError)throw creditError;
    const address=[o.street,o.house_number,o.neighborhood,o.complement].filter(Boolean).join(' · ');
-   const rows=(data||[]).map(i=>'<tr><td colspan="2"><b>'+escapeHtml(i.product_name)+'</b></td></tr><tr><td>'+escapeHtml(i.quantity)+' × '+cash(Number(i.unit_price))+'</td><td align="right">'+cash(Number(i.line_total))+'</td></tr>').join('');
+   const rows=(data||[]).map(i=>'<tr><td colspan="2"><b>'+escapeHtml(i.product_name)+'</b> · '+(i.sale_format==='fardo'?'FARDO ('+escapeHtml(i.units_per_fardo)+' un.)':'UNIDADE')+'</td></tr><tr><td>'+escapeHtml(i.quantity)+' × '+cash(Number(i.unit_price))+'</td><td align="right">'+cash(Number(i.line_total))+'</td></tr>').join('');
    const paymentDetails=(paymentParts||[]).map(p=>
     '<div>'+escapeHtml(paymentLabels[p.method]||p.method)+': <b>'+cash(Number(p.amount))+'</b>'+
     (Number(p.change_amount)>0?' · Troco: '+cash(Number(p.change_amount)):'')+'</div>'
