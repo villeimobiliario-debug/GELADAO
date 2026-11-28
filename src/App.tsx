@@ -3,6 +3,8 @@ import type {KeyboardEvent as ReactKey,FormEvent} from 'react';
 import type {User} from '@supabase/supabase-js';
 import {supabase as sb} from './supabase';
 import StockPage from './StockPage';
+import {QRCodeSVG} from 'qrcode.react';
+import {buildPixPayload} from './pix';
 
 type Page='dashboard'|'balcao'|'delivery'|'estoque'|'fiados'|'produtos'|'clientes'|'relatorios'|'config';
 type Staff={user_id:string;role:'admin'|'operador';active:boolean;display_name:string};
@@ -33,7 +35,7 @@ const sortedMatchingProducts=(products:Product[],query:string,max:number)=>produ
  .slice(0,max);
 
 type Form={customer_id:string;customer_name:string;customer_phone:string;street:string;neighborhood:string;house_number:string;complement:string;note:string;delivery_fee:string;discount:string;payment_method:string;paid:boolean;collect_on_delivery:boolean;delivery_collection_amount:string};
-type Settings={store_name:string;store_subtitle:string;store_phone:string|null;store_address:string|null;receipt_footer:string|null;auto_print:boolean};
+type Settings={store_name:string;store_subtitle:string;store_phone:string|null;store_address:string|null;receipt_footer:string|null;auto_print:boolean;pix_key:string;pix_receiver:string;pix_city:string};
 const tabs:[Page,string,string][]=[['dashboard','Dashboard','▦'],['balcao','PDV Balcão','▤'],['delivery','PDV Delivery','▥'],['estoque','Estoque','◫'],['fiados','Fiados','▧'],['produtos','Produtos','◫'],['clientes','Clientes','♙'],['relatorios','Relatórios','▧'],['config','Configurações','⚙']];
 const initialForm:Form={customer_id:'',customer_name:'',customer_phone:'',street:'',neighborhood:'',house_number:'',complement:'',note:'',delivery_fee:'0',discount:'0',payment_method:'nao_informado',paid:false,collect_on_delivery:false,delivery_collection_amount:''};
 const paymentLabels:{[key:string]:string}={nao_informado:'Não informado',dinheiro:'Dinheiro',pix:'Pix',cartao:'Cartão',misto:'Misto',conta:'Conta / Fiado'};
@@ -47,7 +49,7 @@ function newForm(c?:Customer):Form{return {...initialForm,customer_id:c?.id||'',
 
 type CounterMethod='dinheiro'|'pix'|'cartao'|'conta';
 type CounterPayment={method:CounterMethod;amount:number;tendered_amount:number|null};
-type CounterPayStage='choose'|'cash'|'confirm'|'split'|'account';
+type CounterPayStage='choose'|'cash'|'confirm'|'split'|'account'|'pix';
 function paymentCents(input:string):number|null{
  const v=input.trim().replace(',','.');
  if(!/^(?:0|[1-9][0-9]{0,5})(?:\.[0-9]{1,2})?$/.test(v))return null;
@@ -144,10 +146,44 @@ function CounterRemoveDialog({lines,onClose,onRemove}:{lines:Line[];onClose:()=>
  </div>;
 }
 
-function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfirm,busy,externalError,customers,balances,defaultCustomerId}:{
+function PixCodePanel({payload,error,amount,verified,onVerifiedChange,busy}:{
+ payload:string;error:string;amount:number;verified:boolean;
+ onVerifiedChange:(value:boolean)=>void;busy:boolean;
+}){
+ const [copyMessage,setCopyMessage]=useState('');
+ useEffect(()=>setCopyMessage(''),[payload]);
+ const copyCode=async()=>{
+  if(!payload)return;
+  try{await navigator.clipboard.writeText(payload);setCopyMessage('Código Pix copiado.')}
+  catch{setCopyMessage('Selecione o código abaixo e copie manualmente.')}
+ };
+ return <div className="counter-pix-panel">
+  <div className="counter-pix-value"><span>Valor do QR Code</span><strong>{cash(amount)}</strong></div>
+  {payload?<div className="counter-pix-content">
+   <div className="counter-pix-qr" aria-label={'QR Code Pix para '+cash(amount)}>
+    <QRCodeSVG value={payload} size={208} level="M" marginSize={2}/>
+   </div>
+   <div className="counter-pix-copy">
+    <label htmlFor="pix-copy-code">Pix Copia e Cola</label>
+    <input id="pix-copy-code" readOnly value={payload} onFocus={e=>e.target.select()}/>
+    <button type="button" onClick={()=>void copyCode()}>Copiar código Pix</button>
+    {copyMessage&&<small role="status">{copyMessage}</small>}
+   </div>
+  </div>:<p className="counter-pix-setup" role="alert">
+   {error||'QR Code Pix indisponível.'} Um administrador deve cadastrar a chave, o nome e a cidade em Configurações.
+  </p>}
+  <p className="counter-pix-warning">O QR Code não confirma o pagamento. Confira no aplicativo do banco se o dinheiro realmente entrou antes de registrar a venda.</p>
+  <label className="counter-pix-check">
+   <input type="checkbox" checked={verified} disabled={!payload||busy} onChange={e=>onVerifiedChange(e.target.checked)}/>
+   <span>Conferi no banco: o Pix de <strong>{cash(amount)}</strong> foi recebido.</span>
+  </label>
+ </div>;
+}
+
+function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfirm,busy,externalError,customers,balances,defaultCustomerId,pixSettings}:{
  total:number;discount:string;onDiscountChange:(value:string)=>void;onClose:()=>void;
  onConfirm:(lines:CounterPayment[],customerId?:string)=>void;busy:boolean;externalError:string;
- customers:Customer[];balances:Record<string,number>;defaultCustomerId:string;
+ customers:Customer[];balances:Record<string,number>;defaultCustomerId:string;pixSettings:Settings;
 }){
  const [stage,setStage]=useState<CounterPayStage>('choose');
  const [selected,setSelected]=useState<CounterMethod|null>(null);
@@ -158,13 +194,21 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
  const [splitAmount,setSplitAmount]=useState('');
  const [splitTendered,setSplitTendered]=useState('');
  const [error,setError]=useState('');
+ const [pixVerified,setPixVerified]=useState(false);
  const dialogRef=useRef<HTMLDivElement>(null),cashRef=useRef<HTMLInputElement>(null),splitRef=useRef<HTMLInputElement>(null);
  const totalCents=Math.round(total*100);
  const remaining=totalCents-splitLines.reduce((sum,p)=>sum+Math.round(p.amount*100),0);
  const cashCents=cashReceived.trim()?paymentCents(cashReceived):totalCents;
  const cashChange=cashCents===null?null:cashCents-totalCents;
  const payNames:Record<CounterMethod,string>={dinheiro:'Dinheiro',pix:'Pix',cartao:'Cartão',conta:'Conta / Fiado'};
- useEffect(()=>{setStage('choose');setSelected(null);setSplitLines([]);setSplitMethod(null);setSplitAmount('');setError('')},[total]);
+ const pixFor=(cents:number)=>{
+  try{return {payload:buildPixPayload(pixSettings,cents),error:''}}
+  catch(err){return {payload:'',error:err instanceof Error?err.message:'Falha ao gerar o Pix.'}}
+ };
+ const fullPix=useMemo(()=>pixFor(totalCents),[pixSettings.pix_key,pixSettings.pix_receiver,pixSettings.pix_city,totalCents]);
+ const splitPixCents=splitAmount.trim()?paymentCents(splitAmount):remaining;
+ const splitPix=useMemo(()=>pixFor(splitPixCents??0),[pixSettings.pix_key,pixSettings.pix_receiver,pixSettings.pix_city,splitPixCents]);
+ useEffect(()=>{setStage('choose');setSelected(null);setSplitLines([]);setSplitMethod(null);setSplitAmount('');setPixVerified(false);setError('')},[total]);
  useEffect(()=>{
   if(stage==='cash')cashRef.current?.focus();
   else if(stage==='split'&&splitMethod==='conta'&&!creditCustomerId)dialogRef.current?.focus();
@@ -178,18 +222,20 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
  },[creditCustomerId,stage,splitMethod]);
  const chooseMethod=(method:CounterMethod)=>{
   if(busy)return;
-  setSelected(method);setError('');
-  if(method==='dinheiro'){setCashReceived('');setStage('cash')}
+  setSelected(method);setError('');setPixVerified(false);
+  if(method==='pix')setStage('pix');
+  else if(method==='dinheiro'){setCashReceived('');setStage('cash')}
   else if(method==='conta')setStage('account');
   else setStage('confirm');
  };
  const startSplit=()=>{
   if(busy)return;
-  setSelected(null);setSplitLines([]);setSplitMethod(null);setSplitAmount('');setSplitTendered('');setError('');setStage('split');
+  setSelected(null);setSplitLines([]);setSplitMethod(null);setSplitAmount('');setSplitTendered('');setPixVerified(false);setError('');setStage('split');
  };
  const addSplit=()=>{
   if(busy||!splitMethod)return;
   if(splitMethod==='conta'&&!creditCustomerId){setError('Selecione um cliente cadastrado para a parcela fiada.');return}
+  if(splitMethod==='pix'&&(!splitPix.payload||!pixVerified)){setError('Confira no banco o recebimento do Pix e marque a confirmação antes de adicionar a parcela.');return}
   if(splitLines.length>=8){setError('Limite de oito parcelas por venda.');return}
   const amount=splitAmount.trim()?paymentCents(splitAmount):remaining;
   if(amount===null||amount<=0||amount>remaining){setError('Valor inválido: informe até o restante da venda.');return}
@@ -199,11 +245,15 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
    if(tendered===null||tendered<amount){setError('O dinheiro entregue deve cobrir a parcela.');return}
   }
   setSplitLines(prev=>[...prev,{method:splitMethod,amount:amount/100,tendered_amount:tendered===null?null:tendered/100}]);
-  setSplitMethod(null);setSplitAmount('');setSplitTendered('');setError('');
+  setSplitMethod(null);setSplitAmount('');setSplitTendered('');setPixVerified(false);setError('');
  };
  const confirm=()=>{
   if(busy)return;
   if(!Number.isFinite(total)||totalCents<=0||totalCents>99999999){setError('O total precisa ser maior que zero e inferior a R$ 1 milhão.');return}
+  if(stage==='pix'){
+   if(!fullPix.payload||!pixVerified){setError('Confira o Pix recebido no banco e marque a confirmação antes de registrar a venda.');return}
+   onConfirm([{method:'pix',amount:totalCents/100,tendered_amount:null}]);return;
+  }
   if(stage==='confirm'&&selected){onConfirm([{method:selected,amount:totalCents/100,tendered_amount:null}]);return}
   if(stage==='account'){
    if(!creditCustomerId){setError('Selecione um cliente cadastrado para anotar na Conta.');return}
@@ -243,7 +293,7 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
   }
   if(stage==='split'&&!splitMethod&&!input&&['1','2','3','4'].includes(e.key)){
    e.preventDefault();e.stopPropagation();
-   setSplitMethod(({1:'dinheiro',2:'pix',3:'cartao',4:'conta'} as Record<string,CounterMethod>)[e.key]);setError('');
+   setSplitMethod(({1:'dinheiro',2:'pix',3:'cartao',4:'conta'} as Record<string,CounterMethod>)[e.key]);setPixVerified(false);setError('');
    return;
   }
   if(stage==='split'&&!splitMethod&&!input&&e.key==='Backspace'&&splitLines.length){
@@ -269,6 +319,14 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
      <button type="button" onClick={()=>chooseMethod('conta')} className="counter-pay-account-option"><kbd>5</kbd><span>▧</span><strong>Conta — Fiado</strong><small>Anotar na conta de cliente cadastrado</small></button>
     </div>
     <p className="counter-pay-hint">Digite 1, 2, 3, 4 ou 5. Fiados exigem cliente cadastrado e não entram como recebidos.</p>
+   </section>}
+   {stage==='pix'&&<section className="counter-pay-body counter-pay-pix">
+    <h3>Receber via Pix</h3>
+    <PixCodePanel payload={fullPix.payload} error={fullPix.error} amount={total}
+     verified={pixVerified} onVerifiedChange={value=>{setPixVerified(value);setError('')}} busy={busy}/>
+    <button type="button" className="counter-pay-finish" disabled={busy||!pixVerified||!fullPix.payload}
+     onClick={confirm}>{busy?'Salvando...':'Recebi o Pix · Confirmar venda'}</button>
+    <button type="button" className="counter-pay-back" disabled={busy} onClick={()=>{setPixVerified(false);setStage('choose')}}>Alterar forma de pagamento</button>
    </section>}
    {stage==='confirm'&&<section className="counter-pay-body counter-pay-ready">
     <h3>{selected?payNames[selected]:''}</h3><p>Pagamento integral de <strong>{cash(total)}</strong></p>
@@ -304,17 +362,22 @@ function CounterCheckoutDialog({total,discount,onDiscountChange,onClose,onConfir
     </div>)}</div>}
     {remaining>0&&<div className="counter-pay-pick"><p>Próxima forma · teclas 1, 2, 3 ou 4 (Conta)</p>
      <div>{(['dinheiro','pix','cartao','conta'] as CounterMethod[]).map((v,i)=><button key={v} type="button"
-       className={v===splitMethod?'selected':''} onClick={()=>{setSplitMethod(v);setError('')}}><kbd>{i+1}</kbd> {payNames[v]}</button>)}</div>
+       className={v===splitMethod?'selected':''} onClick={()=>{setSplitMethod(v);setPixVerified(false);setError('')}}><kbd>{i+1}</kbd> {payNames[v]}</button>)}</div>
     </div>}
     {splitMethod&&remaining>0&&<div className="counter-pay-entry">
       <label htmlFor="counter-split-amount">Valor em {payNames[splitMethod]} (R$)</label>
       <input id="counter-split-amount" ref={splitRef} inputMode="decimal" autoComplete="off" disabled={busy}
-       placeholder={cash(remaining/100)} value={splitAmount} onChange={e=>{setSplitAmount(e.target.value);setError('')}}/>
+       placeholder={cash(remaining/100)} value={splitAmount} onChange={e=>{setSplitAmount(e.target.value);setPixVerified(false);setError('')}}/>
       {splitMethod==='dinheiro'&&<><label htmlFor="counter-split-received">Dinheiro entregue (opcional)</label>
        <input id="counter-split-received" inputMode="decimal" autoComplete="off" disabled={busy}
         placeholder="Em branco = valor exato" value={splitTendered} onChange={e=>setSplitTendered(e.target.value)}/></>}
       {splitMethod==='conta'&&<CreditCustomerPicker customers={customers} selectedId={creditCustomerId} onSelect={setCreditCustomerId} balances={balances}/>}
-      <button type="button" className="counter-pay-add" onClick={addSplit} disabled={busy}>Adicionar parcela · Enter</button>
+      {splitMethod==='pix'&&<PixCodePanel payload={splitPix.payload} error={splitPix.error} amount={(splitPixCents||0)/100}
+       verified={pixVerified} onVerifiedChange={value=>{setPixVerified(value);setError('')}} busy={busy}/>}
+      <button type="button" className="counter-pay-add" onClick={addSplit}
+       disabled={busy||(splitMethod==='pix'&&(!pixVerified||!splitPix.payload))}>
+       {splitMethod==='pix'?'Recebi o Pix · Adicionar parcela':'Adicionar parcela · Enter'}
+      </button>
     </div>}
     {remaining===0&&<div className="counter-pay-complete"><strong>Pagamento completo!</strong><p>Enter confirma a venda.</p></div>}
     <div className="counter-pay-split-actions"><button type="button" className="counter-pay-back" disabled={busy} onClick={()=>setStage('choose')}>Voltar</button>
@@ -340,7 +403,7 @@ function App(){
  const [creditPaymentAmount,setCreditPaymentAmount]=useState(''),[creditPaymentMethod,setCreditPaymentMethod]=useState<'dinheiro'|'pix'|'cartao'>('pix'),[creditPaymentNote,setCreditPaymentNote]=useState(''),[creditPaymentBusy,setCreditPaymentBusy]=useState(false),[creditPaymentError,setCreditPaymentError]=useState('');
  const [creditOrderItems,setCreditOrderItems]=useState<CreditOrderItem[]>([]),[creditOrderId,setCreditOrderId]=useState<string|null>(null),[creditItemsLoading,setCreditItemsLoading]=useState(false);
  const creditPaymentRequestId=useRef(crypto.randomUUID());
- const [settings,setSettings]=useState<Settings>({store_name:'GELADÃO',store_subtitle:'Distribuidora de Bebidas',store_phone:'',store_address:'',receipt_footer:'Obrigado pela preferência!',auto_print:false});
+ const [settings,setSettings]=useState<Settings>({store_name:'GELADÃO',store_subtitle:'Distribuidora de Bebidas',store_phone:'',store_address:'',receipt_footer:'Obrigado pela preferência!',auto_print:false,pix_key:'',pix_receiver:'',pix_city:''});
  const [period,setPeriod]=useState('hoje'),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [query,setQuery]=useState(''),[customerQuery,setCustomerQuery]=useState(''),[orderQuery,setOrderQuery]=useState('');
  const [saleOpen,setSaleOpen]=useState(false),[saleChannel,setSaleChannel]=useState<'balcao'|'delivery'>('delivery'),[editing,setEditing]=useState<Order|null>(null);
@@ -715,7 +778,16 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
  function openCustomer(c?:Customer){setEditCustomer(c||null);setCustForm({name:c?.name||'',phone:c?.phone||'',street:c?.street||'',neighborhood:c?.neighborhood||'',house_number:c?.house_number||'',complement:c?.complement||''});setNewCustomer(true)}
  async function addCategory(){if(!admin||!catName.trim())return;const r=await sb.from('categories').insert({name:catName.trim()});if(r.error)showError(r.error);else{setCatName('');await refresh()}}
  async function manageStaff(e:FormEvent){e.preventDefault();if(!admin||!memberEmail.trim())return;setBusy(true);try{const{error}=await sb.rpc('manage_staff_by_email',{p_email:memberEmail.trim(),p_role:memberRole,p_active:memberActive});if(error)throw error;setMemberEmail('');setNotice('Permissão de usuário atualizada.');await refresh()}catch(err){showError(err)}finally{setBusy(false)}}
- async function saveSettings(e:FormEvent){e.preventDefault();if(!admin)return;const r=await sb.from('app_settings').update({...settings,updated_at:new Date().toISOString()}).eq('id',1);if(r.error)showError(r.error);else setNotice('Configurações atualizadas.')}
+ async function saveSettings(e:FormEvent){
+  e.preventDefault();if(!admin)return;
+  const pix={pix_key:settings.pix_key.trim(),pix_receiver:settings.pix_receiver.trim(),pix_city:settings.pix_city.trim()};
+  if(Object.values(pix).some(Boolean)){
+   try{buildPixPayload(pix,100)}
+   catch(err){setNotice(err instanceof Error?err.message:'Confira os dados Pix.');return}
+  }
+  const r=await sb.from('app_settings').update({...settings,...pix,updated_at:new Date().toISOString()}).eq('id',1);
+  if(r.error)showError(r.error);else{setSettings(v=>({...v,...pix}));setNotice('Configurações atualizadas.');}
+ }
  const creditByCustomer=customers.map(customer=>{
   const sales=creditBalances.filter(x=>x.customer_id===customer.id);
   const amount=sales.reduce((sum,x)=>sum+Number(x.credit_amount),0);
@@ -887,7 +959,20 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
  {page==='relatorios'&&<><div className="toolbar"><h2>Histórico de vendas</h2><div className="actions"><input placeholder="Número, nome ou telefone" value={orderQuery} onChange={e=>setOrderQuery(e.target.value)}/><button className="outline" onClick={()=>{const rows=[['Pedido','Data','Canal','Total','Pagamento'],...orders.map(o=>[String(o.order_number),fmt(o.sold_at),o.channel,String(o.total),o.payment_status])];const csv=rows.map(r=>r.map(v=>'"'+v.replace(/"/g,'""')+'"').join(';')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv'}));a.download='geladao-vendas.csv';a.click();URL.revokeObjectURL(a.href)}}>Exportar CSV</button></div></div><section className="card"><div className="tablewrap"><table><thead><tr><th>Pedido</th><th>Data</th><th>Canal</th><th>Total</th><th>Pagamento</th><th>Ações</th></tr></thead><tbody>{orders.filter(o=>(String(o.order_number)+' '+o.customer_name+' '+o.customer_phone).toLowerCase().includes(orderQuery.toLowerCase())).map(o=><tr key={o.id}><td>#{o.order_number}{o.status==='cancelled'?' · Cancelado':''}</td><td>{fmt(o.sold_at)}</td><td>{o.channel}</td><td>{cash(Number(o.total))}</td><td>{creditBalances.some(c=>c.order_id===o.id)?
   (Number(creditBalances.find(c=>c.order_id===o.id)?.balance||0)===0?'Conta quitada':'Fiado: '+cash(Number(creditBalances.find(c=>c.order_id===o.id)?.balance||0)))
   :(o.payment_status==='paid'?'Recebido':'Pendente')}</td><td><div className="actions"><button className="outline" onClick={()=>print(o)}>Imprimir</button>{o.status==='active'&&<><button className="outline" onClick={()=>void editSale(o)}>Editar</button>{admin&&<button className="danger" onClick={()=>void cancel(o)}>Cancelar</button>}</>}</div></td></tr>)}</tbody></table></div></section></>}
- {page==='config'&&<section className="card settings"><h2>Configurações da distribuidora</h2><form onSubmit={saveSettings}><label>Nome<input disabled={!admin} value={settings.store_name} onChange={e=>setSettings(s=>({...s,store_name:e.target.value}))}/></label><label>Subtítulo<input disabled={!admin} value={settings.store_subtitle} onChange={e=>setSettings(s=>({...s,store_subtitle:e.target.value}))}/></label><label>Telefone<input disabled={!admin} value={settings.store_phone||''} onChange={e=>setSettings(s=>({...s,store_phone:e.target.value}))}/></label><label>Endereço no cupom<input disabled={!admin} value={settings.store_address||''} onChange={e=>setSettings(s=>({...s,store_address:e.target.value}))}/></label><label>Rodapé do cupom<input disabled={!admin} value={settings.receipt_footer||''} onChange={e=>setSettings(s=>({...s,receipt_footer:e.target.value}))}/></label><label className="settings-print-option"><input type="checkbox" checked={Boolean(settings.auto_print)}
+ {page==='config'&&<section className="card settings"><h2>Configurações da distribuidora</h2><form onSubmit={saveSettings}><label>Nome<input disabled={!admin} value={settings.store_name} onChange={e=>setSettings(s=>({...s,store_name:e.target.value}))}/></label><label>Subtítulo<input disabled={!admin} value={settings.store_subtitle} onChange={e=>setSettings(s=>({...s,store_subtitle:e.target.value}))}/></label><label>Telefone<input disabled={!admin} value={settings.store_phone||''} onChange={e=>setSettings(s=>({...s,store_phone:e.target.value}))}/></label><label>Endereço no cupom<input disabled={!admin} value={settings.store_address||''} onChange={e=>setSettings(s=>({...s,store_address:e.target.value}))}/></label><label>Rodapé do cupom<input disabled={!admin} value={settings.receipt_footer||''} onChange={e=>setSettings(s=>({...s,receipt_footer:e.target.value}))}/></label><fieldset className="settings-pix">
+  <legend>Pix no caixa · QR Code</legend>
+  <p>Cadastre a chave Pix que recebe o dinheiro. Ao selecionar Pix no Balcão, o QR Code será calculado com o valor exato da venda. Não há confirmação automática do banco.</p>
+  <label>Chave Pix do estabelecimento<input disabled={!admin} value={settings.pix_key||''} maxLength={77}
+   placeholder="CPF, CNPJ, e-mail, +55... ou chave aleatória"
+   onChange={e=>setSettings(v=>({...v,pix_key:e.target.value}))}/></label>
+  <div className="settings-pix-grid">
+   <label>Nome do recebedor<input disabled={!admin} maxLength={25} value={settings.pix_receiver||''}
+    placeholder="Como aparece na conta Pix" onChange={e=>setSettings(v=>({...v,pix_receiver:e.target.value}))}/></label>
+   <label>Cidade do recebedor<input disabled={!admin} maxLength={15} value={settings.pix_city||''}
+    placeholder="Cidade da conta" onChange={e=>setSettings(v=>({...v,pix_city:e.target.value}))}/></label>
+  </div>
+  <small>Verifique se a chave pertence à conta correta antes de usar o QR Code em vendas reais.</small>
+ </fieldset><label className="settings-print-option"><input type="checkbox" checked={Boolean(settings.auto_print)}
  disabled={!admin} onChange={e=>setSettings(v=>({...v,auto_print:e.target.checked}))}/>
  Solicitar impressão automática do cupom após salvar uma venda</label>
  <p>A impressão utiliza cupom de 80 mm e não abre outra aba. No Chrome convencional ainda pode aparecer a prévia: impressão sem diálogo exige configuração local de modo quiosque ou política gerenciada, além da impressora térmica definida como padrão. O navegador não confirma se o papel saiu; se houver problema, use Reimprimir.</p>{admin&&<button className="primary">Salvar configurações</button>}</form>{admin&&<div className="staff-panel"><h3>Usuários e permissões</h3><p>O usuário deve solicitar acesso primeiro. Apenas administradores podem liberar ou bloquear a conta.</p><form className="staff-form" onSubmit={manageStaff}><label>E-mail cadastrado<input type="email" required value={memberEmail} onChange={e=>setMemberEmail(e.target.value)} placeholder="usuario@exemplo.com"/></label><label>Perfil<select value={memberRole} onChange={e=>setMemberRole(e.target.value)}><option value="operador">Operador</option><option value="admin">Administrador</option></select></label><label>Status<select value={memberActive?'ativo':'inativo'} onChange={e=>setMemberActive(e.target.value==='ativo')}><option value="ativo">Ativo</option><option value="inativo">Bloqueado</option></select></label><button className="primary" disabled={busy}>Salvar permissão</button></form><div className="staff-list">{staffMembers.map(m=><div className="line-row" key={m.user_id}><strong>{m.display_name||m.user_id.slice(0,8)}</strong><span>{m.role==='admin'?'Administrador':'Operador'} · {m.active?'Ativo':'Bloqueado'}</span></div>)}</div></div>}</section>}
@@ -1004,7 +1089,7 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
       onClose={()=>{if(!busy){setCounterPaymentOpen(false);counterSearchRef.current?.focus()}}}
       onConfirm={(payments,customerId)=>{void saveSale(payments,customerId)}} busy={busy}
       customers={customers} balances={Object.fromEntries(customers.map(c=>[c.id,creditBalances.filter(x=>x.customer_id===c.id).reduce((sum,x)=>sum+Number(x.balance),0)]))}
-      defaultCustomerId={form.customer_id}
+      defaultCustomerId={form.customer_id} pixSettings={settings}
       externalError={counterPaymentError}/>}
     <div className="counter-bottom-summary">
      <div className="counter-total-panel"><span>Total da venda</span><strong>{cash(total)}</strong>
