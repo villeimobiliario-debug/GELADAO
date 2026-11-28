@@ -18,6 +18,19 @@ type SaleFormat='unidade'|'fardo';
 type Line={product:Product;quantity:number;unit_price:number;sale_format:SaleFormat;units_per_fardo:number};
 const saleKey=(l:Line)=>l.product.id+':'+l.sale_format;
 const priceFor=(p:Product,format:SaleFormat)=>Number(format==='fardo'?p.fardo_sale_price:p.sale_price);
+const searchText=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR').trim();
+const productMatches=(product:Product,query:string)=>[product.name,product.barcode,product.fardo_barcode,product.sku]
+ .some(value=>searchText(String(value||'')).includes(query));
+const productRank=(product:Product,query:string)=>{
+ const name=searchText(product.name);
+ const exactCode=[product.barcode,product.fardo_barcode,product.sku].some(value=>value&&searchText(value)===query);
+ return exactCode||name===query?0:name.startsWith(query)?1:2;
+};
+const sortedMatchingProducts=(products:Product[],query:string,max:number)=>products
+ .filter(p=>p.active&&productMatches(p,query))
+ .sort((a,b)=>productRank(a,query)-productRank(b,query)||
+   searchText(a.name).localeCompare(searchText(b.name),'pt-BR'))
+ .slice(0,max);
 
 type Form={customer_id:string;customer_name:string;customer_phone:string;street:string;neighborhood:string;house_number:string;complement:string;note:string;delivery_fee:string;discount:string;payment_method:string;paid:boolean;collect_on_delivery:boolean;delivery_collection_amount:string};
 type Settings={store_name:string;store_subtitle:string;store_phone:string|null;store_address:string|null;receipt_footer:string|null;auto_print:boolean};
@@ -633,9 +646,10 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
  const sums={balcao:filtered.filter(x=>x.channel==='balcao').reduce((s,o)=>s+Number(o.total),0),delivery:filtered.filter(x=>x.channel==='delivery').reduce((s,o)=>s+Number(o.total),0)};
  const monthly=Array.from({length:6},(_,i)=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-(5-i));const key=shortDay(d).slice(0,7);return {key,label:new Intl.DateTimeFormat('pt-BR',{month:'short'}).format(d),value:activeOrders.filter(o=>day(o.sold_at).slice(0,7)===key).reduce((sum,o)=>sum+Number(o.total),0)}});
  const monthlyMax=Math.max(1,...monthly.map(x=>x.value));
- const matched=products.filter(p=>p.active&&(p.name.toLowerCase().includes(productSearch.toLowerCase())||p.barcode?.includes(productSearch)||p.fardo_barcode?.includes(productSearch))).slice(0,9);
- const counterQuery=productSearch.trim().toLowerCase();
- const counterMatches=counterQuery?products.filter(p=>p.active&&(p.name.toLowerCase().includes(counterQuery)||String(p.barcode||'').toLowerCase().includes(counterQuery)||String(p.sku||'').toLowerCase().includes(counterQuery)||String(p.fardo_barcode||'').toLowerCase().includes(counterQuery))).slice(0,8):[];
+ const normalizedQuery=searchText(productSearch);
+ const matched=normalizedQuery?sortedMatchingProducts(products,normalizedQuery,9):products.filter(p=>p.active).slice(0,9);
+ const counterQuery=normalizedQuery;
+ const counterMatches=counterQuery?sortedMatchingProducts(products,counterQuery,8):[];
  const counterSelected=counterChoiceIndex>=0?counterMatches[counterChoiceIndex]:counterMatches.find(p=>p.barcode===productSearch.trim()||p.fardo_barcode===productSearch.trim()||p.sku===productSearch.trim())||counterMatches[0];
  const counterPendingProduct=counterPendingProductId?products.find(p=>p.id===counterPendingProductId&&p.active):undefined;
  const counterPreview=counterPendingProduct||counterSelected||products.find(p=>p.id===counterLastProductId);
@@ -836,7 +850,13 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
       {productSearch&&!counterPendingProduct&&<div className="counter-suggestions" role="listbox" aria-label="Produtos encontrados">
        {counterMatches.map((p,i)=><button type="button" key={p.id} className={p.id===counterSelected?.id?'selected':''}
         onClick={()=>prepareCounterQuantity(p)} role="option" aria-selected={p.id===counterSelected?.id}>
-        <span><b>{p.name}</b><small>{p.barcode||p.sku||p.unit}{p.fardo_enabled?' · Fardo: '+p.units_per_fardo+' un.':''}</small></span><strong>{cash(Number(p.sale_price))}{p.fardo_enabled?' / '+cash(Number(p.fardo_sale_price))+' fardo':''}</strong>
+        <span><b>{p.name}</b>
+         <small>{p.fardo_enabled?'UNIDADE + FARDO DE '+p.units_per_fardo+' · '+Number(p.closed_fardos)+' fardos fechados':'SOMENTE UNIDADE'}</small>
+        </span>
+        <span className="counter-suggestion-prices">
+         <strong>{cash(Number(p.sale_price))} / un.</strong>
+         {p.fardo_enabled&&<b>Fardo: {cash(Number(p.fardo_sale_price))}</b>}
+        </span>
        </button>)}
        {!counterMatches.length&&<p>Nenhum produto encontrado.</p>}
       </div>}
