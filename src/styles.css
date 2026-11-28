@@ -2589,3 +2589,248 @@ thead th{background:#fbfcfe}
  .counter-remove-choice>b{font-size:14px}
  .counter-remove-footer{padding:11px;gap:7px}
 }
+
+
+/* GELADAO BALCAO - LEGIBILIDADE AMPLIADA 2026-11-27
+   Escopo exclusivo: modal PDV Balcao. Nao altera Delivery nem logica de pagamentos. */
+.counter-sale-form{
+  grid-template-rows:30px 58px 82px minmax(0,1fr) 111px 53px;
+}
+.counter-windowbar{padding:0 14px}
+.counter-topbar{padding:6px 18px;gap:14px;flex-wrap:nowrap}
+.counter-brand{padding-right:18px}
+.counter-brand strong{font-size:27px}
+.counter-brand i{height:4px;bottom:-3px}
+.counter-attendant{font-size:13px}
+.counter-top-meta{font-size:12px;gap:10px}
+.counter-top-meta>span+span{padding-left:10px}
+.counter-product-banner{
+  margin:7px 12px 6px;
+  padding:10px 20px;
+  gap:0;
+  border-radius:10px;
+  box-shadow:none;
+}
+.counter-product-tag{display:none}
+.counter-product-banner h2{
+  font-size:clamp(24px,2.7vw,38px);
+  line-height:1.14;
+  letter-spacing:0;
+}
+.counter-main{
+  grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);
+  gap:12px;
+  padding:7px 12px 9px;
+}
+.counter-terminal{padding:15px 18px;background:#fff}
+.counter-search-label{font-size:17px;margin-bottom:8px;font-weight:850}
+.counter-search-wrap input{
+  min-height:65px;
+  padding:12px 16px;
+  font-size:23px;
+  font-weight:780;
+  line-height:1.2;
+  background:#fff;
+  border:2px solid #91b6e7;
+}
+.counter-search-wrap:focus-within input{
+  border-color:#176bdd;
+  box-shadow:0 0 0 4px rgba(38,110,220,.17);
+}
+.counter-barcode-icon{display:none}
+.counter-entry-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin-top:15px;
+}
+.counter-entry-grid label{
+  font-size:16px;
+  font-weight:830;
+  gap:8px;
+  min-width:0;
+}
+.counter-entry-grid input{
+  min-height:70px;
+  font-size:clamp(21px,2.1vw,30px);
+  line-height:1.15;
+  text-align:left;
+  font-weight:850;
+  padding:10px;
+  font-variant-numeric:tabular-nums;
+  background:#f6f9ff;
+}
+.counter-entry-grid label:first-child input{
+  font-size:32px;
+  background:#fff;
+  border:2px solid #92b7e9;
+  color:#103c7f;
+}
+.counter-entry-grid input:read-only{color:#17365f;background:#f2f6fd}
+.counter-entry-grid label:focus-within{color:#1156b3}
+.counter-entry-grid label:focus-within input{
+  border-color:#126ee7;
+  box-shadow:0 0 0 4px rgba(24,106,223,.17);
+}
+.counter-terminal .counter-qty-prompt{
+  font-size:15px;
+  padding:11px 13px;
+  line-height:1.4;
+}
+.counter-suggestions{max-height:260px}
+.counter-suggestions button{min-height:72px;padding:10px 13px;gap:12px}
+.counter-suggestions button>span:first-child b{font-size:17px;line-height:1.35}
+.counter-suggestions button>span:first-child small{font-size:12px}
+.counter-suggestions .counter-suggestion-prices strong,
+.counter-suggestions .counter-suggestion-prices b{font-size:16px}
+.counter-add{
+  min-height:52px;
+  margin-top:12px;
+  font-size:17px;
+  font-weight:840;
+  border-color:#a9c8f3;
+}
+.counter-more{margin-top:12px;padding-top:10px}
+.counter-more summary{font-size:13px}
+.counter-terminal .counter-error{font-size:14px;padding:10px 12px}
+.counter-ticket{padding:0;background:#fff}
+.counter-ticket .counter-summary-table{
+  min-width:570px;
+  table-layout:fixed;
+}
+.counter-ticket .counter-summary-table col.counter-col-qty{width:14%}
+.counter-ticket .counter-summary-table col.counter-col-product{width:42%}
+.counter-ticket .counter-summary-table col.counter-col-unit{width:20%}
+.counter-ticket .counter-summary-table col.counter-col-total{width:24%}
+.counter-ticket .counter-summary-table th{
+  font-size:14px;
+  padding:14px 10px;
+  color:#23416a;
+}
+.counter-ticket .counter-summary-table td{padding:14px 10px}
+.counter-summary-quantity strong{
+  font-size:22px;
+  min-width:49px;
+  min-height:43px;
+  padding:5px 8px;
+}
+.counter-summary-product>div{align-items:center;gap:8px}
+.counter-summary-product span{
+  font-size:clamp(20px,1.75vw,24px);
+  line-height:1.25;
+  color:#123462;
+}
+.counter-line-format{font-size:12px}
+.counter-summary-remove{
+  flex:none;
+  min-width:42px;
+  width:42px;
+  height:42px;
+  padding:0;
+  font-size:25px;
+  border-radius:9px;
+}
+.counter-ticket .counter-summary-table td.counter-summary-unit{
+  font-size:clamp(18px,1.5vw,22px);
+  font-weight:790;
+}
+.counter-ticket .counter-summary-table td.counter-summary-total{
+  font-size:clamp(20px,1.7vw,25px);
+}
+.counter-empty h3{font-size:20px}
+.counter-empty p{font-size:14px}
+.counter-bottom-summary{display:block;padding:5px 12px 9px}
+.counter-total-panel{
+  min-height:96px;
+  padding:12px 19px;
+  display:flex;
+  flex-direction:row;
+  gap:18px;
+  align-items:center;
+  justify-content:space-between;
+}
+.counter-total-panel>span{
+  font-size:22px;
+  padding-right:17px;
+  line-height:1.2;
+}
+.counter-total-panel>strong{
+  margin-left:auto;
+  font-size:clamp(36px,3.3vw,50px);
+  font-variant-numeric:tabular-nums;
+}
+.counter-total-panel>button{
+  position:static;
+  flex:none;
+  min-height:55px;
+  padding:10px 18px;
+  font-size:17px;
+  line-height:1.15;
+  font-weight:850;
+  border-radius:10px;
+  background:#fff;
+  color:#084aa7;
+  border:2px solid #fff;
+  white-space:nowrap;
+}
+.counter-total-panel>button small{font-size:13px;color:#1854a4}
+.counter-total-panel>button:hover:not(:disabled){background:#e4f0ff;border-color:#e4f0ff}
+.counter-total-panel>button:focus-visible{outline:3px solid #ffe076;outline-offset:3px}
+.counter-shortcuts{
+  margin:0;
+  padding:6px 10px;
+  justify-content:space-between;
+}
+.counter-shortcuts button{font-size:12px;padding:7px 10px}
+.counter-shortcuts kbd{font-size:12px;padding:4px 7px}
+@media(max-width:1250px){
+  .counter-main{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)}
+  .counter-entry-grid label{font-size:14px}
+  .counter-entry-grid input{font-size:22px}
+  .counter-entry-grid label:first-child input{font-size:29px}
+  .counter-total-panel>span{font-size:18px}
+  .counter-total-panel>strong{font-size:36px}
+  .counter-total-panel>button{font-size:15px;padding:10px 12px}
+  .counter-ticket .counter-summary-table{min-width:555px}
+}
+@media(max-width:1000px){
+  .counter-workspace{overflow:auto}
+  .counter-sale-form{
+    height:auto;
+    min-height:100dvh;
+    grid-template-rows:auto auto auto auto auto auto;
+  }
+  .counter-topbar{flex-wrap:wrap}
+  .counter-main{grid-template-columns:minmax(0,1fr)}
+  .counter-terminal{overflow:visible}
+  .counter-ticket{min-height:280px;max-height:480px}
+  .counter-ticket-scroll{overflow:auto}
+  .counter-entry-grid label{font-size:16px}
+  .counter-entry-grid input{font-size:26px}
+  .counter-entry-grid label:first-child input{font-size:32px}
+  .counter-bottom-summary{padding:8px 12px}
+  .counter-total-panel{min-height:95px}
+}
+@media(max-width:700px){
+  .counter-topbar{padding:10px 13px}
+  .counter-product-banner{padding:11px 14px}
+  .counter-product-banner h2{font-size:23px}
+  .counter-main{padding:8px}
+  .counter-terminal{padding:15px 12px}
+  .counter-search-wrap input{font-size:20px;min-height:59px}
+  .counter-entry-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .counter-entry-grid label:last-child{grid-column:1/-1}
+  .counter-entry-grid input{font-size:24px;min-height:63px}
+  .counter-entry-grid label:first-child input{font-size:29px}
+  .counter-ticket .counter-summary-table{min-width:555px}
+  .counter-total-panel{flex-wrap:wrap;gap:10px;padding:14px}
+  .counter-total-panel>span{border-right:0;padding-right:0;font-size:19px}
+  .counter-total-panel>strong{font-size:36px}
+  .counter-total-panel>button{width:100%;justify-content:center}
+  .counter-shortcuts{justify-content:flex-start;overflow-x:auto}
+  .counter-suggestions button>span:first-child b{font-size:16px}
+}
+@media(max-width:400px){
+  .counter-top-meta{display:none}
+  .counter-total-panel>strong{font-size:32px}
+  .counter-entry-grid input{font-size:21px}
+}
