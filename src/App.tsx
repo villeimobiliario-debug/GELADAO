@@ -633,7 +633,7 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
  const sums={balcao:filtered.filter(x=>x.channel==='balcao').reduce((s,o)=>s+Number(o.total),0),delivery:filtered.filter(x=>x.channel==='delivery').reduce((s,o)=>s+Number(o.total),0)};
  const monthly=Array.from({length:6},(_,i)=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-(5-i));const key=shortDay(d).slice(0,7);return {key,label:new Intl.DateTimeFormat('pt-BR',{month:'short'}).format(d),value:activeOrders.filter(o=>day(o.sold_at).slice(0,7)===key).reduce((sum,o)=>sum+Number(o.total),0)}});
  const monthlyMax=Math.max(1,...monthly.map(x=>x.value));
- const matched=products.filter(p=>p.active&&(p.name.toLowerCase().includes(productSearch.toLowerCase())||p.barcode?.includes(productSearch))).slice(0,9);
+ const matched=products.filter(p=>p.active&&(p.name.toLowerCase().includes(productSearch.toLowerCase())||p.barcode?.includes(productSearch)||p.fardo_barcode?.includes(productSearch))).slice(0,9);
  const counterQuery=productSearch.trim().toLowerCase();
  const counterMatches=counterQuery?products.filter(p=>p.active&&(p.name.toLowerCase().includes(counterQuery)||String(p.barcode||'').toLowerCase().includes(counterQuery)||String(p.sku||'').toLowerCase().includes(counterQuery)||String(p.fardo_barcode||'').toLowerCase().includes(counterQuery))).slice(0,8):[];
  const counterSelected=counterChoiceIndex>=0?counterMatches[counterChoiceIndex]:counterMatches.find(p=>p.barcode===productSearch.trim()||p.fardo_barcode===productSearch.trim()||p.sku===productSearch.trim())||counterMatches[0];
@@ -654,7 +654,7 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
   setForm(prev=>({...newForm(c),delivery_fee:prev.delivery_fee,discount:prev.discount,payment_method:prev.payment_method,paid:prev.paid,note:prev.note}));
   setCustomerSearch('');setCustomerChoiceIndex(-1);
  };
- const advanceField=(e:ReactKey<HTMLFormElement>)=>{if(e.key!=='Enter'||e.ctrlKey)return;const target=e.target as HTMLElement;if(target.tagName==='TEXTAREA'||target.tagName==='BUTTON')return;if(target.id==='product-search'){e.preventDefault();if(matched[0])addProduct(matched[0]);return}e.preventDefault();const all=[...e.currentTarget.querySelectorAll<HTMLElement>('[data-nav]')].filter(n=>!n.hasAttribute('disabled'));const i=all.indexOf(target);all[i+(e.shiftKey?-1:1)]?.focus()};
+ const advanceField=(e:ReactKey<HTMLFormElement>)=>{if(e.key!=='Enter'||e.ctrlKey)return;const target=e.target as HTMLElement;if(target.tagName==='TEXTAREA'||target.tagName==='BUTTON')return;if(target.id==='product-search'){e.preventDefault();if(matched[0])addProduct(matched[0],matched[0].fardo_enabled&&matched[0].fardo_barcode===productSearch.trim()?'fardo':'unidade');return}e.preventDefault();const all=[...e.currentTarget.querySelectorAll<HTMLElement>('[data-nav]')].filter(n=>!n.hasAttribute('disabled'));const i=all.indexOf(target);all[i+(e.shiftKey?-1:1)]?.focus()};
  if(!authReady)return <div className="auth-shell">Carregando GELADÃO...</div>;
  if(authMode==='recovery')return <main className="auth-shell"><form className="card login" onSubmit={saveRecoveredPassword}>
   <div className="login-logo">G</div><h1>Criar nova senha</h1><p>Escolha uma nova senha para sua conta do GELADÃO.</p>
@@ -942,8 +942,11 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
   {customerMatches.length>1&&<small className="sale-search-hint">Encontrados {customerMatches.length} clientes. Clique no correto ou use ↓/↑ e Enter para selecionar.</small>}
  </div>}<div className="fieldgrid"><label>Nome<input data-nav value={form.customer_name} onChange={e=>updateForm('customer_name',e.target.value)}/></label><label>Telefone<input data-nav value={form.customer_phone} onChange={e=>updateForm('customer_phone',e.target.value)}/></label></div>
  {saleChannel==='delivery'&&<><h3>Endereço <small>(todos os campos opcionais)</small></h3><div className="fieldgrid">{([['street','Rua'],['neighborhood','Bairro'],['house_number','Número'],['complement','Complemento']] as const).map(([k,label])=><label key={k}>{label}<input data-nav id={k==='street'?'delivery-street':undefined} value={form[k]} onChange={e=>updateForm(k,e.target.value)}/></label>)}</div></>}
- <h3>Produtos</h3><input ref={searchRef} id="product-search" data-nav placeholder="Buscar produto / código de barras e Enter para adicionar" value={productSearch} onChange={e=>setProductSearch(e.target.value)}/>{productSearch&&<div className="suggestions">{matched.map(p=><button key={p.id} type="button" onClick={()=>addProduct(p)}>{p.name} — {cash(Number(p.sale_price))}</button>)}</div>}
-   <div className="cart sale-editable-cart">{cart.map(l=><div className="cartline" key={l.product.id}><div><b>{l.product.name}</b><small>{cash(Number(l.unit_price))} / {l.product.unit}</small>{admin&&<label className="priceinput">Preço unitário<input type="number" step=".01" min="0" value={l.unit_price} onChange={e=>setCart(lines=>lines.map(x=>x.product.id===l.product.id?{...x,unit_price:Number(e.target.value)}:x))}/></label>}</div><div className="qty"><button type="button" onClick={()=>changeQty(l.product.id,l.quantity-1)}>−</button><input type="number" min="1" step="1" value={l.quantity} onChange={e=>changeQty(l.product.id,Number(e.target.value))}/><button type="button" onClick={()=>changeQty(l.product.id,l.quantity+1)}>+</button></div><b>{cash(l.quantity*l.unit_price)}</b></div>)}{!cart.length&&<p className="muted">Adicione os produtos para começar a venda.</p>}</div>
+ <h3>Produtos</h3><input ref={searchRef} id="product-search" data-nav placeholder="Buscar produto / código de barras e Enter para adicionar" value={productSearch} onChange={e=>setProductSearch(e.target.value)}/>{productSearch&&<div className="suggestions">{matched.map(p=><div key={p.id} className="delivery-product-options">
+     <span>{p.name}</span><button type="button" onClick={()=>addProduct(p,'unidade')}>Unidade · {cash(Number(p.sale_price))}</button>
+     {p.fardo_enabled&&<button type="button" onClick={()=>addProduct(p,'fardo')}>Fardo ({p.units_per_fardo} un.) · {cash(Number(p.fardo_sale_price))}</button>}
+    </div>)}</div>}
+   <div className="cart sale-editable-cart">{cart.map(l=><div className="cartline" key={saleKey(l)}><div><b>{l.product.name} · {l.sale_format==='fardo'?'FARDO ('+l.units_per_fardo+' un.)':'UNIDADE'}</b><small>{cash(Number(l.unit_price))} / {l.sale_format==='fardo'?'fardo':l.product.unit}</small>{admin&&<label className="priceinput">Preço unitário<input type="number" step=".01" min="0" value={l.unit_price} onChange={e=>setCart(lines=>lines.map(x=>x.product.id===l.product.id&&x.sale_format===l.sale_format?{...x,unit_price:Number(e.target.value)}:x))}/></label>}</div><div className="qty"><button type="button" onClick={()=>changeQty(l.product.id,l.quantity-1,l.sale_format)}>−</button><input type="number" min="1" step="1" value={l.quantity} onChange={e=>changeQty(l.product.id,Number(e.target.value),l.sale_format)}/><button type="button" onClick={()=>changeQty(l.product.id,l.quantity+1,l.sale_format)}>+</button></div><b>{cash(l.quantity*l.unit_price)}</b></div>)}{!cart.length&&<p className="muted">Adicione os produtos para começar a venda.</p>}</div>
 
  <section className="payment-panel">
   <h3>Pagamento e entrega</h3>
@@ -957,8 +960,8 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
    <span className="order-summary-count">{cart.reduce((sum,line)=>sum+line.quantity,0)} un.</span>
   </div>
   <div className="order-summary-items">
-   {cart.map(l=><div className="order-summary-item" key={l.product.id}>
-    <div><b>{l.product.name}</b><small>{l.quantity} × {cash(Number(l.unit_price))}</small></div>
+   {cart.map(l=><div className="order-summary-item" key={saleKey(l)}>
+    <div><b>{l.product.name} · {l.sale_format==='fardo'?'FARDO':'UNIDADE'}</b><small>{l.quantity} × {cash(Number(l.unit_price))}{l.sale_format==='fardo'?' ('+l.units_per_fardo+' un./fardo)':''}</small></div>
     <strong>{cash(l.quantity*l.unit_price)}</strong>
    </div>)}
    {!cart.length&&<p className="muted">Os produtos selecionados aparecerão aqui.</p>}
