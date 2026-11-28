@@ -105,3 +105,87 @@
  .stock-modal-actions button{flex:1}
 }
 @media(max-width:440px){.stock-metrics{grid-template-columns:1fr 1fr;gap:8px}.stock-metric{padding:12px!important}.stock-metric strong{font-size:22px}.stock-metric small{font-size:10px}}
+
+/* Cost-aware incoming inventory */
+.stock-entry-cost-fields{
+ display:grid;
+ gap:10px;
+ border-radius:12px;
+ background:#f5f9ff;
+ border:1px solid #d5e5f8;
+ padding:16px;
+}
+.stock-entry-cost-fields>label{
+ font-size:14px;
+ font-weight:790;
+ color:#234b7c;
+}
+.stock-entry-cost-fields>input{
+ width:100%;
+ border:2px solid #94bdea;
+ background:#fff;
+ border-radius:11px;
+ min-height:62px;
+ padding:12px 15px;
+ color:#17457f;
+ font-size:27px;
+ font-variant-numeric:tabular-nums;
+ font-weight:850;
+}
+.stock-entry-cost-fields>input:focus{
+ outline:3px solid #c9e3ff;
+ outline-offset:2px;
+ border-color:#317cdf;
+}
+.stock-entry-cost-fields>p{
+ margin:0;
+ font-size:11px;
+ line-height:1.6;
+ color:#6c86a4;
+}
+.stock-entry-cost-summary{
+ display:grid;
+ gap:9px;
+ padding-top:10px;
+ border-top:1px solid #d5e3f4;
+}
+.stock-entry-cost-summary>div{
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+ flex-wrap:wrap;
+ gap:5px 12px;
+}
+.stock-entry-cost-summary span{
+ font-size:12px;
+ color:#5c7698;
+ font-weight:710;
+}
+.stock-entry-cost-summary strong{
+ font-variant-numeric:tabular-nums;
+ font-weight:830;
+ font-size:17px;
+ color:#1a4c88;
+}
+.stock-entry-cost-summary>div:first-child{
+ border:1px solid #b6d8c8;
+ background:#eaf8ef;
+ border-radius:9px;
+ padding:12px 13px;
+}
+.stock-entry-cost-summary>div:first-child span{color:#31765a}
+.stock-entry-cost-summary>div:first-child strong{font-size:22px;color:#14724e}
+.stock-history-table{min-width:1380px}
+.stock-table .stock-entry-financial{
+ font-variant-numeric:tabular-nums;
+ white-space:nowrap;
+}
+.stock-product-hint small{
+ display:block;
+}
+@media(max-width:620px){
+ .stock-entry-cost-fields{padding:12px;gap:8px}
+ .stock-entry-cost-summary>div{align-items:flex-start}
+ .stock-entry-cost-summary strong{font-size:15px}
+ .stock-entry-cost-summary>div:first-child strong{font-size:20px}
+}
