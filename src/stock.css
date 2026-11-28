@@ -189,3 +189,34 @@
  .stock-entry-cost-summary strong{font-size:15px}
  .stock-entry-cost-summary>div:first-child strong{font-size:20px}
 }
+
+/* GELADAO PACK INVENTORY PHYSICAL COUNTS */
+.stock-pack-physical{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:9px;
+}
+.stock-pack-physical>div{
+ background:#f0f6ff;border:1px solid #bcd4f3;border-radius:10px;
+ padding:13px;display:grid;gap:7px;
+}
+.stock-pack-physical span{font-size:11px;font-weight:720;color:#5d7c9f;line-height:1.3}
+.stock-pack-physical strong{font-size:25px;font-weight:850;color:#174783;font-variant-numeric:tabular-nums}
+.stock-pack-exit-format{
+ display:grid;grid-template-columns:1fr 1fr;gap:9px;
+ padding:10px;background:#f2f7ff;border-radius:11px;
+}
+.stock-pack-exit-format button{
+ background:white;border:1px solid #bfd5f1;color:#366494;
+ border-radius:9px;padding:12px 8px;font-weight:780;font-size:14px;
+}
+.stock-pack-exit-format button.selected{border:2px solid #2e7bd5;color:#174f9e;background:#e4f1ff}
+.stock-table{min-width:1130px}
+.stock-history-table{min-width:1580px}
+.stock-pack-inline{font-size:11px;font-weight:720;color:#547aa4}
+@media(max-width:580px){
+ .stock-pack-physical{gap:5px}
+ .stock-pack-physical>div{padding:10px 6px}
+ .stock-pack-physical strong{font-size:21px}
+ .stock-pack-physical span{font-size:10px}
+ .stock-pack-exit-format button{font-size:12px;padding:10px 5px}
+}
