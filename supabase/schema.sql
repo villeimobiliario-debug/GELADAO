@@ -18,6 +18,9 @@ CREATE TABLE public."app_settings" (
  store_address text,
  receipt_footer text DEFAULT 'Obrigado pela preferência!'::text,
  auto_print boolean DEFAULT false NOT NULL,
+ pix_key text DEFAULT ''::text NOT NULL,
+ pix_receiver text DEFAULT ''::text NOT NULL,
+ pix_city text DEFAULT ''::text NOT NULL,
  updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
