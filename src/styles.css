@@ -2483,3 +2483,109 @@ thead th{background:#fbfcfe}
  .counter-suggestions button{flex-wrap:wrap}
  .counter-suggestions .counter-suggestion-prices{flex-direction:row;display:flex;gap:12px;text-align:left;flex-wrap:wrap}
 }
+
+/* GELADÃO PDV — ITEM-SPECIFIC REMOVAL */
+.counter-summary-product>div{gap:9px}
+.counter-summary-remove{
+  opacity:1;
+  min-width:80px;
+  height:34px;
+  padding:4px 9px;
+  border-radius:8px;
+  border:1px solid #f1c7cc;
+  background:#fff2f3;
+  color:#a82e42;
+  font-size:12px;
+  font-weight:820;
+  white-space:nowrap;
+  gap:4px;
+}
+.counter-summary-remove>span{font-size:17px;font-weight:850;line-height:1}
+.counter-summary-remove:hover,.counter-summary-remove:focus-visible{
+ background:#ffe2e6;border-color:#d74658;color:#8f2335;opacity:1;
+ box-shadow:0 0 0 2px #fcd9de;
+}
+.counter-remove-overlay{
+ position:fixed;inset:0;z-index:210;
+ display:flex;align-items:center;justify-content:center;
+ padding:16px;background:rgba(8,22,49,.73);
+ backdrop-filter:blur(5px);
+}
+.counter-remove-dialog{
+ background:#f8fbff;border:1px solid #c3d7f2;
+ width:min(710px,100%);max-height:calc(100dvh - 32px);
+ display:flex;flex-direction:column;
+ color:#1a3d69;
+ border-radius:17px;overflow:hidden;
+ box-shadow:0 22px 75px rgba(0,20,49,.5);
+ outline:none;
+}
+.counter-remove-header{
+ background:linear-gradient(113deg,#112c65,#164a9e);
+ color:#fff;padding:18px 23px;
+ display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.counter-remove-header small{font-size:10px;color:#bbd5fc;font-weight:800;letter-spacing:.8px}
+.counter-remove-header h2{margin:5px 0 0;font-size:22px;font-weight:850;color:#fff}
+.counter-remove-header button{
+ flex:none;width:38px;height:38px;
+ border:1px solid #ffffff64;border-radius:9px;
+ background:#ffffff1e;color:#fff;
+ font-size:24px;cursor:pointer;
+}
+.counter-remove-header button:hover{background:#ffffff38}
+.counter-remove-hint{
+ margin:0;padding:15px 22px 10px;
+ font-size:13px;line-height:1.55;color:#567396;
+}
+.counter-remove-items{display:grid;gap:7px;padding:10px 17px 18px;overflow:auto;min-height:0;scrollbar-width:thin}
+.counter-remove-choice{
+ display:flex;align-items:center;gap:12px;width:100%;
+ min-height:73px;padding:12px 15px;
+ border:2px solid #e0e9f7;border-radius:11px;
+ background:#fff;text-align:left;color:#194477;
+ cursor:pointer;
+}
+.counter-remove-choice.selected,.counter-remove-choice:hover,.counter-remove-choice:focus-visible{
+ border-color:#377bd6;background:#e9f2ff;outline:none;
+ box-shadow:0 2px 9px #275ba51c;
+}
+.counter-remove-item-index{
+ display:grid;place-items:center;flex:none;
+ width:32px;height:32px;border-radius:8px;
+ background:#e7f0fd;color:#2760a9;font-size:14px;font-weight:850;
+}
+.counter-remove-choice.selected .counter-remove-item-index{background:#1b59b7;color:white}
+.counter-remove-item-info{display:grid;gap:5px;flex:1;min-width:0}
+.counter-remove-item-info strong{font-size:16px;font-weight:810;color:#153d71;overflow-wrap:anywhere}
+.counter-remove-item-info small{font-size:12px;color:#607e9e}
+.counter-remove-choice>b{font-size:16px;font-weight:850;white-space:nowrap;color:#174783}
+.counter-remove-item-action{
+ display:inline-flex;align-items:center;justify-content:center;
+ min-width:64px;padding:8px 10px;border:1px solid #f0bdc5;
+ background:#fff0f2;border-radius:8px;color:#aa3043;
+ font-size:12px;font-weight:850;
+}
+.counter-remove-footer{
+ border-top:1px solid #dae6f5;background:#f0f6ff;
+ display:flex;align-items:center;justify-content:space-between;gap:11px;
+ padding:13px 20px;flex-wrap:wrap;
+}
+.counter-remove-footer>span{font-size:12px;color:#59769a;font-weight:710}
+.counter-remove-footer button{
+ border:1px solid #bdd1ee;border-radius:8px;
+ background:white;color:#275b99;
+ padding:10px 14px;font-size:12px;font-weight:750;
+}
+@media(max-width:650px){
+ .counter-summary-remove{min-width:35px;padding:4px 6px;font-size:11px}
+ .counter-remove-dialog{max-height:calc(100dvh - 18px)}
+ .counter-remove-overlay{padding:9px}
+ .counter-remove-header{padding:14px}
+ .counter-remove-hint{padding:12px 15px 8px}
+ .counter-remove-items{padding:9px}
+ .counter-remove-choice{flex-wrap:wrap;gap:8px;padding:10px;min-height:66px}
+ .counter-remove-item-info{flex:1 1 160px}
+ .counter-remove-choice>b{font-size:14px}
+ .counter-remove-footer{padding:11px;gap:7px}
+}
