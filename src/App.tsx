@@ -288,7 +288,7 @@ function App(){
  const [period,setPeriod]=useState('hoje'),[start,setStart]=useState(''),[end,setEnd]=useState('');
  const [query,setQuery]=useState(''),[customerQuery,setCustomerQuery]=useState(''),[orderQuery,setOrderQuery]=useState('');
  const [saleOpen,setSaleOpen]=useState(false),[saleChannel,setSaleChannel]=useState<'balcao'|'delivery'>('delivery'),[editing,setEditing]=useState<Order|null>(null);
- const [counterSaleFormat,setCounterSaleFormat]=useState<SaleFormat>('unidade'),[counterChoosingFormat,setCounterChoosingFormat]=useState(false),
+ const [counterSaleFormat,setCounterSaleFormat]=useState<SaleFormat>('unidade'),[counterChoosingFormat,setCounterChoosingFormat]=useState(false);
  const [counterQty,setCounterQty]=useState('1'),[counterPaymentError,setCounterPaymentError]=useState(''),[counterError,setCounterError]=useState(''),[counterChoiceIndex,setCounterChoiceIndex]=useState(-1),[counterLastProductId,setCounterLastProductId]=useState<string|null>(null),[counterPendingProductId,setCounterPendingProductId]=useState<string|null>(null),[counterPaymentOpen,setCounterPaymentOpen]=useState(false),[counterClock,setCounterClock]=useState(()=>new Date());
  const [form,setForm]=useState<Form>(initialForm),[cart,setCart]=useState<Line[]>([]),[productSearch,setProductSearch]=useState(''),[customerSearch,setCustomerSearch]=useState(''),[customerChoiceIndex,setCustomerChoiceIndex]=useState(-1);
  const [newProduct,setNewProduct]=useState(false),[editProduct,setEditProduct]=useState<Product|null>(null);
