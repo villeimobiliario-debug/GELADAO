@@ -263,7 +263,7 @@ export default function StockPage({products,categories,operators,admin,onReload}
   setLoading(true);setHistoryError('');
   try{
    const {data,error}=await sb.from('stock_movements')
-    .select('id,product_id,order_id,qty_change,reason,actor,created_at,note,qty_before,qty_after,entry_unit_cost,entry_total_cost,avg_cost_before,avg_cost_after')
+    .select('id,product_id,order_id,qty_change,reason,actor,created_at,note,qty_before,qty_after,entry_unit_cost,entry_total_cost,avg_cost_before,avg_cost_after,fardo_entry_qty,units_per_fardo_snapshot,closed_fardos_before,closed_fardos_after,loose_units_before,loose_units_after,fardos_opened')
     .order('created_at',{ascending:false}).limit(500);
    if(error)throw error;
    setMovements((data||[]) as StockMovement[]);
@@ -275,7 +275,7 @@ export default function StockPage({products,categories,operators,admin,onReload}
  const open=(kind:Action,product:string|null=null)=>{setInitialProduct(product);setAction(kind);setNotice('')};
  const lower=query.trim().toLocaleLowerCase('pt-BR');
  const display=useMemo(()=>products.filter(p=>{
-  const matches=!lower||[p.name,p.barcode,p.sku].some(x=>String(x||'').toLocaleLowerCase('pt-BR').includes(lower));
+  const matches=!lower||[p.name,p.barcode,p.fardo_barcode,p.sku].some(x=>String(x||'').toLocaleLowerCase('pt-BR').includes(lower));
   if(!matches)return false;
   const status=stockStatus(p).key;
   if(filter==='todos')return p.active&&p.track_stock;
@@ -286,7 +286,7 @@ export default function StockPage({products,categories,operators,admin,onReload}
  }).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR')),[products,lower,filter]);
  const movementRows=movements.filter(m=>{
   const p=products.find(x=>x.id===m.product_id);
-  const matches=!historyQuery||[p?.name,p?.barcode,p?.sku,String(m.order_id||'')].some(x=>String(x||'').toLocaleLowerCase('pt-BR').includes(historyQuery.toLocaleLowerCase('pt-BR')));
+  const matches=!historyQuery||[p?.name,p?.barcode,p?.fardo_barcode,p?.sku,String(m.order_id||'')].some(x=>String(x||'').toLocaleLowerCase('pt-BR').includes(historyQuery.toLocaleLowerCase('pt-BR')));
   if(!matches)return false;
   if(historyFilter==='todos')return true;
   if(historyFilter==='vendas')return ['venda','edicao','cancelamento'].includes(m.reason);
@@ -325,10 +325,12 @@ export default function StockPage({products,categories,operators,admin,onReload}
     </div>
    </div>
    <div className="stock-table-wrap"><table className="stock-table">
-    <thead><tr><th>Produto</th><th>Código</th><th>Quantidade</th><th>Mínimo</th><th>Situação</th><th>Custo médio</th><th>Valor em estoque</th><th>Ações</th></tr></thead>
+    <thead><tr><th>Produto</th><th>Código</th><th>Fardos fechados</th><th>Unidades avulsas</th><th>Total unidades</th><th>Mínimo</th><th>Situação</th><th>Custo médio/un.</th><th>Valor em estoque</th><th>Ações</th></tr></thead>
     <tbody>{display.map(p=><tr key={p.id}>
-     <td><div className="stock-name"><strong>{p.name}</strong><small>{category(p)} · {p.unit}</small></div></td>
-     <td className="stock-code">{p.barcode||p.sku||'—'}</td>
+     <td><div className="stock-name"><strong>{p.name}</strong><small>{category(p)} · {p.unit}{p.fardo_enabled?' · '+p.units_per_fardo+' un./fardo':''}</small></div></td>
+     <td className="stock-code">{p.barcode||p.fardo_barcode||p.sku||'—'}</td>
+     <td><strong className="stock-amount">{p.fardo_enabled?Number(p.closed_fardos):'—'}</strong></td>
+     <td><strong>{p.fardo_enabled?quantity(Number(p.loose_units)):'—'}</strong></td>
      <td><strong className="stock-amount">{p.track_stock?quantity(Number(p.stock_qty)):'—'}</strong></td>
      <td>{p.track_stock?quantity(Number(p.min_stock)):'—'}</td>
      <td><span className={'stock-status '+stockStatus(p).key}>{stockStatus(p).text}</span></td>
@@ -358,15 +360,19 @@ export default function StockPage({products,categories,operators,admin,onReload}
    </div>
    {historyError&&<p role="alert" className="stock-error">{historyError}</p>}
    <div className="stock-table-wrap"><table className="stock-table stock-history-table">
-    <thead><tr><th>Data</th><th>Produto</th><th>Operação</th><th>Variação</th><th>Antes → Depois</th><th>Custo unit. entrada</th><th>Total entrada</th><th>Custo médio antes → depois</th><th>Responsável</th><th>Motivo</th></tr></thead>
+    <thead><tr><th>Data</th><th>Produto</th><th>Operação</th><th>Variação</th><th>Fardos / avulsas</th><th>Antes → Depois</th><th>Custo entrada</th><th>Total entrada</th><th>Custo médio antes → depois</th><th>Responsável</th><th>Motivo</th></tr></thead>
     <tbody>{movementRows.map(m=>{
      const p=products.find(x=>x.id===m.product_id);
      return <tr key={m.id}>
       <td>{dateTime(m.created_at)}</td><td><strong>{p?.name||'Produto não localizado'}</strong></td>
-      <td>{reasonLabels[m.reason]||m.reason}</td>
+      <td>{reasonLabels[m.reason]||m.reason}{m.fardo_entry_qty!==null?' · '+m.fardo_entry_qty+' fardo(s)':''}</td>
       <td><b className={Number(m.qty_change)>0?'stock-positive':'stock-negative'}>{Number(m.qty_change)>0?'+':''}{quantity(Number(m.qty_change))}</b></td>
+      <td>{m.closed_fardos_before!==null&&m.closed_fardos_after!==null?
+       'Fechados: '+m.closed_fardos_before+' → '+m.closed_fardos_after+
+       ' / Avulsas: '+quantity(Number(m.loose_units_before))+' → '+quantity(Number(m.loose_units_after))+
+       (Number(m.fardos_opened)>0?' / Abertos: '+m.fardos_opened:''):'—'}</td>
       <td>{m.qty_before!==null&&m.qty_after!==null?quantity(Number(m.qty_before))+' → '+quantity(Number(m.qty_after)):'—'}</td>
-      <td>{m.entry_unit_cost!==null?money(Number(m.entry_unit_cost)):'—'}</td>
+      <td>{m.entry_unit_cost!==null?money(Number(m.entry_unit_cost))+(m.fardo_entry_qty!==null?' / fardo':' / unidade'):'—'}</td>
       <td>{m.entry_total_cost!==null?money(Number(m.entry_total_cost)):'—'}</td>
       <td>{m.avg_cost_before!==null&&m.avg_cost_after!==null?averageMoney(Number(m.avg_cost_before))+' → '+averageMoney(Number(m.avg_cost_after)):'—'}</td>
       <td>{actor(m.actor)}</td><td>{m.note|| (m.order_id?'Movimentação automática da venda':'—')}</td>
