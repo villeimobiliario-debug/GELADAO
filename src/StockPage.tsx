@@ -2,6 +2,7 @@ import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import type {FormEvent,KeyboardEvent as ReactKey} from 'react';
 import {supabase as sb} from './supabase';
 import './stock.css';
+import StockIntelligence from './StockIntelligence';
 
 type StockProduct={
  id:string;name:string;barcode:string|null;sku:string|null;unit:string;
@@ -253,6 +254,7 @@ export default function StockPage({products,categories,operators,admin,onReload}
  const [loading,setLoading]=useState(false);
  const [historyError,setHistoryError]=useState('');
  const [notice,setNotice]=useState('');
+ const [insightsRefresh,setInsightsRefresh]=useState(0);
  const [action,setAction]=useState<Action|null>(null);
  const [initialProduct,setInitialProduct]=useState<string|null>(null);
  const controlled=products.filter(p=>p.active&&p.track_stock);
@@ -271,7 +273,7 @@ export default function StockPage({products,categories,operators,admin,onReload}
   finally{setLoading(false)}
  },[]);
  useEffect(()=>{void loadHistory()},[loadHistory]);
- const refreshAll=async()=>{await Promise.all([onReload(),loadHistory()])};
+ const refreshAll=async()=>{await Promise.all([onReload(),loadHistory()]);setInsightsRefresh(n=>n+1)};
  const open=(kind:Action,product:string|null=null)=>{setInitialProduct(product);setAction(kind);setNotice('')};
  const lower=query.trim().toLocaleLowerCase('pt-BR');
  const display=useMemo(()=>products.filter(p=>{
@@ -309,6 +311,8 @@ export default function StockPage({products,categories,operators,admin,onReload}
    <article className="card stock-metric"><span>Produtos esgotados</span><strong>{empty.length}</strong><small>Quantidade disponível igual a zero</small></article>
    <article className="card stock-metric"><span>Valor em estoque</span><strong>{money(value)}</strong><small>Quantidade × custo médio ponderado</small></article>
   </div>
+  <StockIntelligence products={products} admin={admin} refreshToken={insightsRefresh}
+    onRestock={id=>open('entrada',id)}/>
   <section className="card stock-products-card">
    <div className="stock-section-head"><div><h3>Mercadorias</h3><p>Consulte saldos e opere apenas produtos que possuem controle ativado.</p></div>
     {admin&&<div className="stock-quick-actions">
