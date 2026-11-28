@@ -356,7 +356,7 @@ function App(){
   if(saleChannel==='balcao'&&counterPaymentOpen)return;
   if(saleChannel==='balcao'){
    if(e.key==='F3'||e.key==='F4'){e.preventDefault();counterSearchRef.current?.focus();return}
-   if(e.key==='F5'){e.preventDefault();const last=cart[cart.length-1];if(last&&window.confirm('Remover '+last.product.name+' da venda?'))changeQty(last.product.id,0);return}
+   if(e.key==='F5'){e.preventDefault();const last=cart[cart.length-1];if(last&&window.confirm('Remover '+last.product.name+' da venda?'))changeQty(last.product.id,0,last.sale_format);return}
    if(e.key==='F6'){e.preventDefault();if(!cart.length){setNotice('Adicione um produto antes de informar o pagamento.');return}setCounterPaymentError('');setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-discount')?.focus());return}
    if(e.key==='F7'){e.preventDefault();const last=orders.find(o=>o.channel==='balcao'&&o.status==='active');if(last)print(last);return}
    if(e.key==='F8'){e.preventDefault();if(!cart.length){setNotice('Adicione ao menos um produto antes de pagar.');return}setCounterPaymentError('');setCounterPaymentOpen(true);return}
@@ -453,12 +453,21 @@ function App(){
   finally{setCreditItemsLoading(false)}
  }
 async function editSale(o:Order){if(creditBalances.some(x=>x.order_id===o.id)){setNotice('Venda fiada protegida: confira as compras e recebimentos na aba Fiados.');setPage('fiados');setCreditSelectedCustomer(o.customer_id);return}setLoading(true);try{const {data,error}=await sb.from('order_items').select('*').eq('order_id',o.id);if(error)throw error;
-  const lines:Line[]=[];for(const item of data||[]){const p=products.find(v=>v.id===item.product_id);if(p)lines.push({product:p,quantity:Number(item.quantity),unit_price:Number(item.unit_price)})}
+  const lines:Line[]=[];for(const item of data||[]){const p=products.find(v=>v.id===item.product_id);if(p)lines.push({product:p,quantity:Number(item.quantity),unit_price:Number(item.unit_price),sale_format:item.sale_format==='fardo'?'fardo':'unidade',units_per_fardo:Number(item.units_per_fardo||1)})}
   if(lines.length!==(data||[]).length)throw Error('Produto de algum item não está disponível no cadastro.');
   setSaleChannel(o.channel);setEditing(o);setForm({customer_id:o.customer_id||'',customer_name:o.customer_name||'',customer_phone:o.customer_phone||'',street:o.street||'',neighborhood:o.neighborhood||'',house_number:o.house_number||'',complement:o.complement||'',note:o.note||'',delivery_fee:String(o.delivery_fee),discount:String(o.discount),payment_method:o.payment_method,paid:o.payment_status==='paid',collect_on_delivery:o.collect_on_delivery||false,delivery_collection_amount:o.delivery_collection_amount==null?'':String(o.delivery_collection_amount)});setCart(lines);setProductSearch('');setCustomerSearch('');setCounterQty('1');setCounterPaymentError('');setCounterError('');setCounterChoiceIndex(-1);setCounterLastProductId(lines.length?lines[lines.length-1].product.id:null);setCounterPendingProductId(null);setCounterPaymentOpen(false);setSaleOpen(true)
  }catch(err){showError(err)}finally{setLoading(false)}}
- function addProduct(p:Product){setCart(lines=>{const existing=lines.find(x=>x.product.id===p.id);return existing?lines.map(x=>x.product.id===p.id?{...x,quantity:x.quantity+1}:x):[...lines,{product:p,quantity:1,unit_price:Number(p.sale_price)}]});setProductSearch('');searchRef.current?.focus()}
- function changeQty(id:string,qty:number){setCart(lines=>lines.map(x=>x.product.id===id?{...x,quantity:qty}:x).filter(x=>x.quantity>0))}
+ function addProduct(p:Product,format:SaleFormat='unidade'){
+  if(format==='fardo'&&!p.fardo_enabled){setNotice('Produto não configurado para venda de fardos.');return}
+  setCart(lines=>{
+   const existing=lines.find(x=>x.product.id===p.id&&x.sale_format===format);
+   return existing?lines.map(x=>x.product.id===p.id&&x.sale_format===format?{...x,quantity:x.quantity+1}:x):
+    [...lines,{product:p,quantity:1,unit_price:priceFor(p,format),sale_format:format,units_per_fardo:format==='fardo'?p.units_per_fardo:1}]
+  });setProductSearch('');searchRef.current?.focus()
+ }
+ function changeQty(id:string,qty:number,format:SaleFormat='unidade'){
+  setCart(lines=>lines.map(x=>x.product.id===id&&x.sale_format===format?{...x,quantity:qty}:x).filter(x=>x.quantity>0))
+ }
  function prepareCounterQuantity(p:Product){
   setCounterPendingProductId(p.id);
   setCounterLastProductId(p.id);
@@ -519,7 +528,7 @@ async function editSale(o:Order){if(creditBalances.some(x=>x.order_id===o.id)){s
     const{data,error}=await sb.from('customers').insert({name:effectiveForm.customer_name.trim()||null,phone:effectiveForm.customer_phone.trim()||null,street:effectiveForm.street||null,neighborhood:effectiveForm.neighborhood||null,house_number:effectiveForm.house_number||null,complement:effectiveForm.complement||null}).select('id').single();
     if(error)throw error;customerId=data.id;
    }
-   const payload={channel:saleChannel,customer_id:customerId,customer_name:effectiveForm.customer_name,customer_phone:effectiveForm.customer_phone,street:effectiveForm.street,neighborhood:effectiveForm.neighborhood,house_number:effectiveForm.house_number,complement:effectiveForm.complement,note:effectiveForm.note,delivery_fee:saleChannel==='balcao'?0:number(effectiveForm.delivery_fee),discount:number(effectiveForm.discount),payment_method:effectiveForm.payment_method,paid:effectiveForm.paid,collect_on_delivery:saleChannel==='delivery'&&effectiveForm.collect_on_delivery,delivery_collection_amount:saleChannel==='delivery'&&effectiveForm.collect_on_delivery&&effectiveForm.delivery_collection_amount.trim()?number(effectiveForm.delivery_collection_amount):null,request_id:editing?undefined:requestId.current,items:cart.map(l=>({product_id:l.product.id,quantity:l.quantity,...(admin?{unit_price:l.unit_price}:{})}))};
+   const payload={channel:saleChannel,customer_id:customerId,customer_name:effectiveForm.customer_name,customer_phone:effectiveForm.customer_phone,street:effectiveForm.street,neighborhood:effectiveForm.neighborhood,house_number:effectiveForm.house_number,complement:effectiveForm.complement,note:effectiveForm.note,delivery_fee:saleChannel==='balcao'?0:number(effectiveForm.delivery_fee),discount:number(effectiveForm.discount),payment_method:effectiveForm.payment_method,paid:effectiveForm.paid,collect_on_delivery:saleChannel==='delivery'&&effectiveForm.collect_on_delivery,delivery_collection_amount:saleChannel==='delivery'&&effectiveForm.collect_on_delivery&&effectiveForm.delivery_collection_amount.trim()?number(effectiveForm.delivery_collection_amount):null,request_id:editing?undefined:requestId.current,items:cart.map(l=>({product_id:l.product.id,quantity:l.quantity,sale_format:l.sale_format,...(admin?{unit_price:l.unit_price}:{})}))};
    const args={p_data:payload,p_order_id:editing?.id||null,p_expected_version:editing?.version||null};
    const payPayload=payments?.filter(p=>p.method!=='conta').map(p=>({
      method:p.method,amount:p.amount.toFixed(2),
@@ -840,7 +849,7 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
          <td className="counter-summary-quantity"><strong>{line.quantity}×</strong></td>
          <td className="counter-summary-product">
           <div><span title={line.product.name}>{line.product.name}</span>
-           <button type="button" className="counter-summary-remove" title={'Remover '+line.product.name} aria-label={'Remover '+line.product.name} onClick={()=>changeQty(line.product.id,0)}>×</button>
+           <button type="button" className="counter-summary-remove" title={'Remover '+line.product.name} aria-label={'Remover '+line.product.name} onClick={()=>changeQty(line.product.id,0,line.sale_format)}>×</button>
           </div>
          </td>
          <td className="counter-summary-unit">{cash(Number(line.unit_price))}</td>
@@ -872,7 +881,7 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
      <button type="button" onClick={startFreshCounter}><kbd>F2</kbd> Nova venda</button>
      <button type="button" onClick={()=>counterSearchRef.current?.focus()}><kbd>F3</kbd> Consultar produto</button>
      <button type="button" onClick={()=>counterSearchRef.current?.focus()}><kbd>F4</kbd> Código</button>
-     <button type="button" disabled={!cart.length} onClick={()=>{const last=cart[cart.length-1];if(last&&window.confirm('Remover '+last.product.name+' da venda?'))changeQty(last.product.id,0)}}><kbd>F5</kbd> Remover item</button>
+     <button type="button" disabled={!cart.length} onClick={()=>{const last=cart[cart.length-1];if(last&&window.confirm('Remover '+last.product.name+' da venda?'))changeQty(last.product.id,0,last.sale_format)}}><kbd>F5</kbd> Remover item</button>
      <button type="button" onClick={()=>{if(!cart.length){setNotice('Adicione um produto primeiro.');return}setCounterPaymentError('');setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-discount')?.focus())}}><kbd>F6</kbd> Desconto</button>
      <button type="button" disabled={!counterLastOrder} onClick={()=>{if(counterLastOrder)print(counterLastOrder)}}><kbd>F7</kbd> Reimprimir</button>
      <button type="button" onClick={()=>{if(!cart.length){setNotice('Adicione um produto primeiro.');return}setCounterPaymentError('');setCounterPaymentOpen(true)}}><kbd>F8</kbd> Pagamento</button>
