@@ -422,11 +422,11 @@ function App(){
   if(e.key==='Escape'){e.preventDefault();if(saleChannel==='balcao'&&counterPaymentOpen){setCounterPaymentOpen(false);counterSearchRef.current?.focus()}else closeSale();return}
   if(saleChannel==='balcao'&&counterPaymentOpen)return;
   if(saleChannel==='balcao'){
-   if(e.key==='F3'){e.preventDefault();counterSearchRef.current?.focus();return}
+   if(e.key==='F3'||e.key==='F4'){e.preventDefault();counterSearchRef.current?.focus();return}
    if(e.key==='F5'){e.preventDefault();openCounterRemoval();return}
    if(e.key==='F6'){e.preventDefault();if(!cart.length){setNotice('Adicione um produto antes de informar o pagamento.');return}setCounterPaymentError('');setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-discount')?.focus());return}
    if(e.key==='F7'){e.preventDefault();const last=orders.find(o=>o.channel==='balcao'&&o.status==='active');if(last)print(last);return}
-   if(e.key==='F4'||e.key==='F8'){e.preventDefault();if(!cart.length){setNotice('Adicione ao menos um produto antes de pagar.');return}setCounterPaymentError('');setCounterPaymentOpen(true);return}
+   if(e.key==='End'||e.key==='F8'){e.preventDefault();if(!cart.length){setNotice('Adicione ao menos um produto antes de pagar.');return}setCounterPaymentError('');setCounterPaymentOpen(true);return}
   }else{
    if(e.key==='F4'){e.preventDefault();searchRef.current?.focus();return}
    if(e.key==='F6'){e.preventDefault();document.getElementById('delivery-street')?.focus();return}
@@ -1008,14 +1008,15 @@ fardo_enabled:p?.fardo_enabled||false,units_per_fardo:String(p?.units_per_fardo|
       externalError={counterPaymentError}/>}
     <div className="counter-bottom-summary">
      <div className="counter-total-panel"><span>Total da venda</span><strong>{cash(total)}</strong>
-      <button type="submit" disabled={busy||!cart.length}>{busy?'Salvando...':editing?'Salvar alterações':'Ir para pagamento'} <small>F4</small></button>
+      <button type="submit" disabled={busy||!cart.length}>{busy?'Salvando...':editing?'Salvar alterações':'Ir para pagamento'} <small>End</small></button>
      </div>
     </div>
     <footer className="counter-shortcuts">
      <button type="button" onClick={()=>{setCounterPaymentOpen(false);counterSearchRef.current?.focus()}}><kbd>F1</kbd> Adicionar produto</button>
      <button type="button" onClick={startFreshCounter}><kbd>F2</kbd> Nova venda</button>
      <button type="button" onClick={()=>counterSearchRef.current?.focus()}><kbd>F3</kbd> Consultar produto</button>
-     <button type="button" onClick={()=>{if(!cart.length){setNotice('Adicione um produto primeiro.');return}setCounterPaymentError('');setCounterPaymentOpen(true)}}><kbd>F4</kbd> Pagamento</button>
+     <button type="button" onClick={()=>counterSearchRef.current?.focus()}><kbd>F4</kbd> Código</button>
+     <button type="button" onClick={()=>{if(!cart.length){setNotice('Adicione um produto primeiro.');return}setCounterPaymentError('');setCounterPaymentOpen(true)}}><kbd>End</kbd> Pagamento</button>
      <button type="button" disabled={!cart.length} onClick={openCounterRemoval}><kbd>F5</kbd> Escolher item para excluir</button>
      <button type="button" onClick={()=>{if(!cart.length){setNotice('Adicione um produto primeiro.');return}setCounterPaymentError('');setCounterPaymentOpen(true);window.requestAnimationFrame(()=>document.getElementById('counter-discount')?.focus())}}><kbd>F6</kbd> Desconto</button>
      <button type="button" disabled={!counterLastOrder} onClick={()=>{if(counterLastOrder)print(counterLastOrder)}}><kbd>F7</kbd> Reimprimir</button>
