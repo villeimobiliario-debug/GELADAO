@@ -13,10 +13,12 @@ type StockOperator={user_id:string;display_name:string};
 type StockMovement={
  id:number;product_id:string;order_id:string|null;qty_change:number;reason:string;
  actor:string|null;created_at:string;note:string|null;qty_before:number|null;qty_after:number|null;
+ entry_unit_cost:number|null;entry_total_cost:number|null;avg_cost_before:number|null;avg_cost_after:number|null;
 };
 type Action='entrada'|'saida'|'inventario';
 type StockFilter='todos'|'baixo'|'esgotado'|'normal'|'sem_controle';
 const money=(n:number)=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const averageMoney=(n:number)=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:4,maximumFractionDigits:4});
 const quantity=(n:number)=>Number(n||0).toLocaleString('pt-BR',{maximumFractionDigits:3});
 const dateTime=(v:string)=>new Date(v).toLocaleString('pt-BR',{timeZone:'America/Fortaleza',dateStyle:'short',timeStyle:'short'});
 const actionLabels:Record<Action,string>={entrada:'Entrada',saida:'Saída',inventario:'Ajuste de inventário'};
@@ -36,6 +38,12 @@ function parseQty(v:string):number|null{
  const result=Number(raw.replace(',','.'));
  return Number.isFinite(result)&&result>=0&&result<=999999?result:null;
 }
+function parseCost(v:string):number|null{
+ const raw=v.trim();
+ if(!/^(?:0|[1-9]\d{0,5})(?:[.,]\d{1,2})?$/.test(raw))return null;
+ const result=Number(raw.replace(',','.'));
+ return Number.isFinite(result)&&result>0&&result<=999999.99?result:null;
+}
 function StockActionModal({products,initialProduct,initialAction,busy,onClose,onSuccess}:{
  products:StockProduct[];initialProduct:string|null;initialAction:Action;
  busy:boolean;onClose:()=>void;onSuccess:(message:string)=>Promise<void>;
@@ -45,12 +53,17 @@ function StockActionModal({products,initialProduct,initialAction,busy,onClose,on
  const [search,setSearch]=useState('');
  const [highlight,setHighlight]=useState(0);
  const [value,setValue]=useState('');
+ const [entryPrice,setEntryPrice]=useState(()=>{
+  const product=products.find(p=>p.id===initialProduct);
+  return product&&Number(product.purchase_price)>0?Number(product.purchase_price).toFixed(2).replace('.',','):'';
+ });
  const [note,setNote]=useState('');
  const [saving,setSaving]=useState(false);
  const [error,setError]=useState('');
  const requestId=useRef(crypto.randomUUID());
  const searchRef=useRef<HTMLInputElement>(null);
  const qtyRef=useRef<HTMLInputElement>(null);
+ const priceRef=useRef<HTMLInputElement>(null);
  const noteRef=useRef<HTMLInputElement>(null);
  const formRef=useRef<HTMLFormElement>(null);
  const selected=products.find(p=>p.id===productId&&p.active&&p.track_stock);
@@ -58,25 +71,43 @@ function StockActionModal({products,initialProduct,initialAction,busy,onClose,on
  const term=search.trim().toLocaleLowerCase('pt-BR');
  const matches=term?tracked.filter(p=>[p.name,p.barcode,p.sku].some(x=>String(x||'').toLocaleLowerCase('pt-BR').includes(term))).slice(0,8):[];
  const parsed=parseQty(value);
+ const parsedPrice=parseCost(entryPrice);
+ const entryTotal=action==='entrada'&&parsed!==null&&parsedPrice!==null?Math.round((parsed*parsedPrice+Number.EPSILON)*100)/100:null;
+ const averagePreview=action==='entrada'&&selected&&parsed!==null&&parsed>0&&parsedPrice!==null
+  ?Number(((Number(selected.stock_qty)*Number(selected.purchase_price)+parsed*parsedPrice)/(Number(selected.stock_qty)+parsed)).toFixed(4)):null;
  const estimate=selected&&parsed!==null?(action==='entrada'?Number(selected.stock_qty)+parsed:action==='saida'?Number(selected.stock_qty)-parsed:parsed):null;
  useEffect(()=>{if(initialProduct)qtyRef.current?.focus();else searchRef.current?.focus()},[initialProduct]);
  const resetRequest=()=>{requestId.current=crypto.randomUUID();setError('')};
- const pick=(p:StockProduct)=>{setProductId(p.id);setSearch('');setValue('');setNote('');setHighlight(0);resetRequest();window.requestAnimationFrame(()=>qtyRef.current?.focus())};
+ const pick=(p:StockProduct)=>{
+  setProductId(p.id);setSearch('');setValue('');setNote('');
+  setEntryPrice(Number(p.purchase_price)>0?Number(p.purchase_price).toFixed(2).replace('.',','):'');
+  setHighlight(0);resetRequest();window.requestAnimationFrame(()=>qtyRef.current?.focus())
+ };
  const save=async(e:FormEvent)=>{
   e.preventDefault();if(saving||busy)return;
   if(!selected){setError('Selecione um produto com controle de estoque ativado.');return}
   if(parsed===null||(action!=='inventario'&&parsed<=0)){setError('Informe uma quantidade válida (até 3 casas decimais).');qtyRef.current?.focus();return}
+  if(action==='entrada'&&parsedPrice===null){setError('Informe o preço de entrada por unidade (maior que zero, até 2 casas decimais).');priceRef.current?.focus();return}
   if((action==='saida'||action==='inventario')&&!note.trim()){setError('Informe o motivo da saída ou do ajuste.');noteRef.current?.focus();return}
   if(estimate===null||estimate<0||estimate>999999){setError('Estoque insuficiente ou acima do limite permitido.');return}
   if(action==='inventario'&&estimate===Number(selected.stock_qty)){setError('A quantidade informada é igual ao estoque atual.');return}
   setSaving(true);setError('');
   try{
-   const {error:rpcError}=await sb.rpc('record_stock_movement',{
-    p_product_id:selected.id,p_action:action,p_quantity:parsed,p_note:note.trim()||null,
-    p_request_id:requestId.current
-   });
-   if(rpcError)throw rpcError;
-   await onSuccess(actionLabels[action]+' registrada para '+selected.name+'.');
+   if(action==='entrada'){
+    const {error:entryError}=await sb.rpc('record_stock_entry',{
+     p_product_id:selected.id,p_quantity:parsed,p_unit_cost:parsedPrice,p_note:note.trim()||null,
+     p_request_id:requestId.current
+    });
+    if(entryError)throw entryError;
+    await onSuccess('Entrada registrada para '+selected.name+' · '+money(entryTotal||0)+' · custo médio atualizado.');
+   }else{
+    const {error:movementError}=await sb.rpc('record_stock_movement',{
+     p_product_id:selected.id,p_action:action,p_quantity:parsed,p_note:note.trim()||null,
+     p_request_id:requestId.current
+    });
+    if(movementError)throw movementError;
+    await onSuccess(actionLabels[action]+' registrada para '+selected.name+'.');
+   }
    onClose();
   }catch(err){setError(err instanceof Error?err.message:String(err))}
   finally{setSaving(false)}
@@ -117,7 +148,20 @@ function StockActionModal({products,initialProduct,initialAction,busy,onClose,on
      <label htmlFor="stock-quantity">{action==='entrada'?'Quantidade recebida':action==='saida'?'Quantidade retirada':'Nova quantidade contada'}</label>
      <input id="stock-quantity" ref={qtyRef} type="text" inputMode="decimal" autoComplete="off" placeholder="Ex.: 30"
       value={value} onChange={e=>{setValue(e.target.value);resetRequest()}} disabled={saving||!selected}
-      onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();if(action==='entrada')formRef.current?.requestSubmit();else noteRef.current?.focus()}}}/>
+      onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();if(action==='entrada')priceRef.current?.focus();else noteRef.current?.focus()}}}/>
+     {action==='entrada'&&<div className="stock-entry-cost-fields">
+      <label htmlFor="stock-entry-cost">Preço de entrada por unidade (R$)</label>
+      <input id="stock-entry-cost" ref={priceRef} type="text" inputMode="decimal" autoComplete="off"
+       placeholder="Ex.: 75,00" value={entryPrice} disabled={saving||!selected}
+       onChange={e=>{setEntryPrice(e.target.value);resetRequest()}}
+       onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();formRef.current?.requestSubmit()}}}/>
+      <p>Preenchido inicialmente com o custo atual. Confirme ou altere conforme o preço cobrado pelo fornecedor.</p>
+      {entryTotal!==null&&selected&&<div className="stock-entry-cost-summary">
+       <div><span>Total da entrada</span><strong>{money(entryTotal)}</strong></div>
+       <div><span>Custo médio atual</span><strong>{averageMoney(Number(selected.purchase_price))}</strong></div>
+       {averagePreview!==null&&<div><span>Novo custo médio previsto</span><strong>{averageMoney(averagePreview)}</strong></div>}
+      </div>}
+     </div>}
      {estimate!==null&&selected&&<div className={'stock-projected '+(estimate<0?'negative':'')}>
       <span>Saldo previsto</span><strong>{quantity(estimate)} {selected.unit}</strong>
      </div>}
@@ -126,7 +170,7 @@ function StockActionModal({products,initialProduct,initialAction,busy,onClose,on
       placeholder={action==='entrada'?'Ex.: Reposição do fornecedor':action==='saida'?'Ex.: Quebra, vencimento, retirada':'Ex.: Contagem física realizada'}
       onChange={e=>{setNote(e.target.value);resetRequest()}} disabled={saving}/>
      {error&&<p className="stock-error" role="alert">{error}</p>}
-     <p className="stock-key-help">Código → Enter → quantidade → {action==='entrada'?'Enter para registrar':'motivo → Enter para registrar'}. Esc para fechar.</p>
+     <p className="stock-key-help">Código → Enter → quantidade → {action==='entrada'?'Enter → preço de entrada → Enter para registrar':'motivo → Enter para registrar'}. Esc para fechar.</p>
     </div>
     <footer className="stock-modal-actions">
      <button className="outline" type="button" onClick={onClose} disabled={saving}>Cancelar · Esc</button>
@@ -157,7 +201,7 @@ export default function StockPage({products,categories,operators,admin,onReload}
   setLoading(true);setHistoryError('');
   try{
    const {data,error}=await sb.from('stock_movements')
-    .select('id,product_id,order_id,qty_change,reason,actor,created_at,note,qty_before,qty_after')
+    .select('id,product_id,order_id,qty_change,reason,actor,created_at,note,qty_before,qty_after,entry_unit_cost,entry_total_cost,avg_cost_before,avg_cost_after')
     .order('created_at',{ascending:false}).limit(500);
    if(error)throw error;
    setMovements((data||[]) as StockMovement[]);
@@ -201,7 +245,7 @@ export default function StockPage({products,categories,operators,admin,onReload}
    <article className="card stock-metric"><span>Produtos controlados</span><strong>{controlled.length}</strong><small>Com controle de estoque ativado</small></article>
    <article className="card stock-metric"><span>Estoque baixo</span><strong>{low.length}</strong><small>Até o limite mínimo configurado</small></article>
    <article className="card stock-metric"><span>Produtos esgotados</span><strong>{empty.length}</strong><small>Quantidade disponível igual a zero</small></article>
-   <article className="card stock-metric"><span>Valor em estoque</span><strong>{money(value)}</strong><small>Quantidade × preço de compra cadastrado</small></article>
+   <article className="card stock-metric"><span>Valor em estoque</span><strong>{money(value)}</strong><small>Quantidade × custo médio ponderado</small></article>
   </div>
   <section className="card stock-products-card">
    <div className="stock-section-head"><div><h3>Mercadorias</h3><p>Consulte saldos e opere apenas produtos que possuem controle ativado.</p></div>
@@ -219,13 +263,14 @@ export default function StockPage({products,categories,operators,admin,onReload}
     </div>
    </div>
    <div className="stock-table-wrap"><table className="stock-table">
-    <thead><tr><th>Produto</th><th>Código</th><th>Quantidade</th><th>Mínimo</th><th>Situação</th><th>Valor em estoque</th><th>Ações</th></tr></thead>
+    <thead><tr><th>Produto</th><th>Código</th><th>Quantidade</th><th>Mínimo</th><th>Situação</th><th>Custo médio</th><th>Valor em estoque</th><th>Ações</th></tr></thead>
     <tbody>{display.map(p=><tr key={p.id}>
      <td><div className="stock-name"><strong>{p.name}</strong><small>{category(p)} · {p.unit}</small></div></td>
      <td className="stock-code">{p.barcode||p.sku||'—'}</td>
      <td><strong className="stock-amount">{p.track_stock?quantity(Number(p.stock_qty)):'—'}</strong></td>
      <td>{p.track_stock?quantity(Number(p.min_stock)):'—'}</td>
      <td><span className={'stock-status '+stockStatus(p).key}>{stockStatus(p).text}</span></td>
+     <td>{p.track_stock?averageMoney(Number(p.purchase_price)):'—'}</td>
      <td>{p.track_stock?money(Number(p.stock_qty)*Number(p.purchase_price)):'—'}</td>
      <td>{admin&&p.active&&p.track_stock?<div className="stock-row-actions">
       <button className="outline" type="button" onClick={()=>open('entrada',p.id)} title="Entrada de mercadoria">+ Entrada</button>
@@ -251,7 +296,7 @@ export default function StockPage({products,categories,operators,admin,onReload}
    </div>
    {historyError&&<p role="alert" className="stock-error">{historyError}</p>}
    <div className="stock-table-wrap"><table className="stock-table stock-history-table">
-    <thead><tr><th>Data</th><th>Produto</th><th>Operação</th><th>Variação</th><th>Antes → Depois</th><th>Responsável</th><th>Motivo</th></tr></thead>
+    <thead><tr><th>Data</th><th>Produto</th><th>Operação</th><th>Variação</th><th>Antes → Depois</th><th>Custo unit. entrada</th><th>Total entrada</th><th>Custo médio antes → depois</th><th>Responsável</th><th>Motivo</th></tr></thead>
     <tbody>{movementRows.map(m=>{
      const p=products.find(x=>x.id===m.product_id);
      return <tr key={m.id}>
@@ -259,6 +304,9 @@ export default function StockPage({products,categories,operators,admin,onReload}
       <td>{reasonLabels[m.reason]||m.reason}</td>
       <td><b className={Number(m.qty_change)>0?'stock-positive':'stock-negative'}>{Number(m.qty_change)>0?'+':''}{quantity(Number(m.qty_change))}</b></td>
       <td>{m.qty_before!==null&&m.qty_after!==null?quantity(Number(m.qty_before))+' → '+quantity(Number(m.qty_after)):'—'}</td>
+      <td>{m.entry_unit_cost!==null?money(Number(m.entry_unit_cost)):'—'}</td>
+      <td>{m.entry_total_cost!==null?money(Number(m.entry_total_cost)):'—'}</td>
+      <td>{m.avg_cost_before!==null&&m.avg_cost_after!==null?averageMoney(Number(m.avg_cost_before))+' → '+averageMoney(Number(m.avg_cost_after)):'—'}</td>
       <td>{actor(m.actor)}</td><td>{m.note|| (m.order_id?'Movimentação automática da venda':'—')}</td>
      </tr>
     })}</tbody>
